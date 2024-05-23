@@ -73,9 +73,10 @@ public:
         value_ -= angle.value();
         return *this;
     }
+    constexpr Degree operator-() const { return Degree{ -value_ }; }
+
     constexpr Degree operator*(float value) const { return Degree{ value_ * value }; }
     constexpr Degree operator/(float value) const { return Degree{ value_ / value }; }
-    constexpr Degree operator-() const { return Degree{ -value_ }; }
 private:
     float value_ = 0.0f;
 };

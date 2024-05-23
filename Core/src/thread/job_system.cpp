@@ -35,6 +35,11 @@ void Job::Reset()
     isDone_.store(false, std::memory_order_release);
 }
 
+bool Job::CheckDependency(const Job *ptr) const
+{
+    return false;
+}
+
 void FuncJob::ExecuteImpl()
 {
     func_();
@@ -50,7 +55,20 @@ bool FuncDependentJob::ShouldStart() const
     return false;
 }
 
-bool DependenciesJob::ShouldStart() const
+bool FuncDependentJob::CheckDependency(const Job *ptr) const
+{
+    if(ptr == this)
+    {
+        return true;
+    }
+    auto dep = dependency_.lock();
+    if(dep != nullptr) {
+        return dep->CheckDependency(ptr);
+    }
+    return false;
+}
+
+bool FuncDependenciesJob::ShouldStart() const
 {
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
@@ -65,10 +83,31 @@ bool DependenciesJob::ShouldStart() const
     return shouldStart;
 }
 
-void DependenciesJob::AddDependency(const std::weak_ptr<Job>& dependency)
+bool FuncDependenciesJob::AddDependency(const std::weak_ptr<Job>& dependency)
 {
-    //TODO check if dependency is not cyclic
+    auto newDependency = dependency.lock();
+    if(newDependency == nullptr || newDependency->CheckDependency(this))
+    {
+        return false;
+    }
     dependencies_.push_back(dependency);
+    return true;
+}
+
+bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
+{
+    if(ptr == this)
+    {
+        return true;
+    }
+    for(auto& dependency: dependencies_)
+    {
+        if(dependency.lock()->CheckDependency(ptr))
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 void WorkerQueue::Begin()
@@ -134,6 +173,8 @@ void Worker::End()
 
 void Worker::Run()
 {
+    if(queue_ == nullptr)
+        return;
     while(queue_->IsRunning())
     {
         if (queue_->IsEmpty())
@@ -173,7 +214,7 @@ JobSystem::JobSystem()
 
 int JobSystem::SetupNewQueue(int threadCount)
 {
-    const int newQueueIndex = static_cast<int>(queues_.size());
+    const int newQueueIndex = queues_.size();
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {
@@ -242,8 +283,9 @@ JobSystem* GetJobSystem()
 {
     if(instance == nullptr)
     {
-        // If you crash here, maybe you did not create a JobSystem?
-        // Or the JobSystem was destroyed?
+        // Instance should not be nullptr
+        // It means the JobSystem was not instanced somewhere
+        // Or that it was destroyed (did you check the scope)
         std::terminate();
     }
     return instance;
