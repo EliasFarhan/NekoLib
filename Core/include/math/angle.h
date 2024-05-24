@@ -45,6 +45,9 @@ private:
     float value_ = 0.0f;
 };
 
+
+constexpr Radian operator*(float value, Radian angle) { return Radian{ angle.value() * value }; }
+
 /**
  * \brief Degree is an utility class that describes degree angles (0 to 360).
  * It can be easily converted to Radian with conversion constructor.
