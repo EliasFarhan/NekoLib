@@ -7,6 +7,8 @@
 #include <memory>
 #include <shared_mutex>
 #include <queue>
+#include <condition_variable>
+#include <thread>
 
 namespace neko
 {
@@ -84,7 +86,7 @@ public:
     WorkerQueue(const WorkerQueue&) = delete;
     WorkerQueue& operator= (const WorkerQueue&) = delete;
     WorkerQueue(WorkerQueue&&) noexcept{}
-    WorkerQueue& operator= (WorkerQueue&&) noexcept{}
+    WorkerQueue& operator= (WorkerQueue&&) noexcept{ return *this; }
 
     void Begin();
     void AddJob(const std::shared_ptr<Job>& newJob);
