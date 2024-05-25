@@ -203,6 +203,21 @@ void Worker::Run()
             }
         }
     }
+    // Even when not running anymore we still need to finish the remaining jobs
+    while (!queue_->IsEmpty())
+    {
+        auto newTask = queue_->PopNextTask();
+        if (newTask == nullptr)
+            continue;
+        if (!newTask->ShouldStart())
+        {
+            queue_->AddJob(std::move(newTask));
+        }
+        else
+        {
+            newTask->Execute();
+        }
+    }
 }
 
 static JobSystem* instance = nullptr;

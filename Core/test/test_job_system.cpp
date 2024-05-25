@@ -80,3 +80,98 @@ TEST(JobSystem, CyclicDependenciesJob)
     EXPECT_FALSE(parentJob1->AddDependency(parentJob4));
 
 }
+
+TEST(JobSystem, WorkerQueue)
+{
+    neko::WorkerQueue queue;
+
+    queue.Begin();
+    EXPECT_TRUE(queue.IsRunning());
+    EXPECT_TRUE(queue.IsEmpty());
+
+    auto job = std::make_shared<neko::FuncJob>([](){});
+    queue.AddJob(job);
+    EXPECT_FALSE(queue.IsEmpty());
+
+    auto topJob = queue.PopNextTask();
+    EXPECT_EQ(topJob.get(), job.get());
+
+    auto noJob = queue.PopNextTask();
+    EXPECT_EQ(noJob.get(), nullptr);
+
+    queue.End();
+}
+
+TEST(JobSystem, EmptyWorker)
+{
+    neko::Worker worker(nullptr);
+    worker.Begin();
+
+    worker.End();
+}
+
+TEST(JobSystem, Worker)
+{
+    neko::WorkerQueue queue;
+    queue.Begin();
+
+    neko::Worker worker(&queue);
+    worker.Begin();
+
+    int number = 0;
+    constexpr int finalNumber = 3;
+    queue.AddJob(std::make_shared<neko::FuncJob>([&number](){number = finalNumber;}));
+
+    // WorkerQueue must be destroyed before the Worker
+    queue.End();
+    worker.End();
+    EXPECT_EQ(number, finalNumber);
+}
+
+TEST(JobSystem, JobSystemOneQueue)
+{
+    neko::JobSystem jobSystem;
+
+    int queueIndex = jobSystem.SetupNewQueue(1);
+    
+    jobSystem.Begin();
+
+    int number = 0;
+    constexpr int finalNumber = 3;
+    jobSystem.AddJob(std::make_shared<neko::FuncJob>([&number](){number = finalNumber;}), queueIndex);
+
+    jobSystem.End();
+
+    EXPECT_EQ(number, finalNumber);
+}
+
+TEST(JobSystem, JobSystemMainQueue)
+{
+    neko::JobSystem jobSystem;
+
+    int queueIndex = jobSystem.SetupNewQueue(1);
+    
+    jobSystem.Begin();
+
+    constexpr int firstNumber = 1;
+    int number = firstNumber;
+    constexpr int secondNumber = 3;
+    auto firstJob = std::make_shared<neko::FuncJob>([&number, &firstNumber](){
+        EXPECT_EQ(number, firstNumber);
+        number = secondNumber;
+    });
+    jobSystem.AddJob(firstJob, queueIndex);
+
+    constexpr int finalNumber = 5;
+    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob, [&number, &firstNumber, &secondNumber, &finalNumber]()
+    {
+        EXPECT_NE(number, firstNumber);
+        EXPECT_EQ(number, secondNumber);
+        number = finalNumber;
+    });
+    jobSystem.AddJob(mainJob, neko::MAIN_QUEUE_INDEX);
+    jobSystem.ExecuteMainThread();
+    jobSystem.End();
+
+    EXPECT_EQ(number, finalNumber);
+}
