@@ -8,6 +8,10 @@ namespace neko
     class LinearAllocator : public CustomAllocator
     {
     public:
+        LinearAllocator(void* start, std::size_t size): CustomAllocator(start, size)
+        {
+            currentPos_ = start;
+        }
         void* Allocate(std::size_t allocatedSize, std::size_t alignment) override;
         void Deallocate(void* ptr) override;
         void Clear();
