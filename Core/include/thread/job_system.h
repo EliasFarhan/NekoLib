@@ -9,6 +9,7 @@
 #include <queue>
 #include <condition_variable>
 #include <thread>
+#include <future>
 
 namespace neko
 {
@@ -16,12 +17,14 @@ namespace neko
 class Job
 {
 public:
+    Job();
     virtual ~Job() = default;
-    void Execute();
+    virtual void Execute();
     bool HasStarted() const;
     bool IsDone() const;
     virtual bool ShouldStart() const;
     void Reset();
+    void Join();
 
     /**
      * \brief CheckDependency is a member function used to check if the arg ptr is already a dependency
@@ -34,6 +37,8 @@ protected:
     virtual void ExecuteImpl() = 0;
 
 private:
+    std::promise<void> promise_;
+    std::shared_future<void> taskDoneFuture_;
     std::atomic<bool> hasStarted_{ false };
     std::atomic<bool> isDone_{ false };
 };
@@ -41,7 +46,7 @@ private:
 class FuncJob : public Job
 {
 public:
-    FuncJob(const std::function<void(void)>& func): func_(func){}
+    FuncJob(const std::function<void(void)>& func): Job(), func_(func){}
 protected:
     void ExecuteImpl() override;
 private:
@@ -57,6 +62,7 @@ public:
     {
 
     }
+    void Execute() override;
     bool ShouldStart() const override;
     bool CheckDependency(const Job *ptr) const override;
 private:
@@ -74,6 +80,7 @@ public:
     [[nodiscard]] bool ShouldStart() const override;
 
     bool AddDependency(const std::weak_ptr<Job>& dependency);
+    void Execute() override;
 protected:
     bool CheckDependency(const Job *ptr) const override;
     std::vector<std::weak_ptr<Job>> dependencies_{};

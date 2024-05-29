@@ -12,6 +12,7 @@ void Job::Execute()
     hasStarted_.store(true, std::memory_order_release);
     ExecuteImpl();
     isDone_.store(true, std::memory_order_release);
+    promise_.set_value();
 }
 
 bool Job::HasStarted() const
@@ -31,6 +32,8 @@ bool Job::ShouldStart() const
 
 void Job::Reset()
 {
+    promise_ = std::promise<void>();
+    taskDoneFuture_ = promise_.get_future();
     hasStarted_.store(false, std::memory_order_release);
     isDone_.store(false, std::memory_order_release);
 }
@@ -38,6 +41,19 @@ void Job::Reset()
 bool Job::CheckDependency(const Job *ptr) const
 {
     return false;
+}
+
+void Job::Join()
+{
+    if(!IsDone())
+    {
+        taskDoneFuture_.get();
+    }
+}
+
+Job::Job() : taskDoneFuture_(promise_.get_future())
+{
+
 }
 
 void FuncJob::ExecuteImpl()
@@ -66,6 +82,15 @@ bool FuncDependentJob::CheckDependency(const Job *ptr) const
         return dep->CheckDependency(ptr);
     }
     return false;
+}
+
+void FuncDependentJob::Execute()
+{
+    if(auto ptr = dependency_.lock())
+    {
+        ptr->Join();
+    }
+    Job::Execute();
 }
 
 bool FuncDependenciesJob::ShouldStart() const
@@ -108,6 +133,18 @@ bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
         }
     }
     return false;
+}
+
+void FuncDependenciesJob::Execute()
+{
+    for(auto& dependency : dependencies_)
+    {
+        if(auto ptr = dependency.lock())
+        {
+            ptr->Join();
+        }
+    }
+    Job::Execute();
 }
 
 void WorkerQueue::Begin()

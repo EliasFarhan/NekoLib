@@ -163,7 +163,7 @@ TEST(JobSystem, JobSystemMainQueue)
     jobSystem.AddJob(firstJob, queueIndex);
 
     constexpr int finalNumber = 5;
-    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob, [&number, &firstNumber, &secondNumber, &finalNumber]()
+    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob, [&number, &firstNumber, &secondNumber]()
     {
         EXPECT_NE(number, firstNumber);
         EXPECT_EQ(number, secondNumber);
