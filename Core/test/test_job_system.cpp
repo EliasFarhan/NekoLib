@@ -175,3 +175,47 @@ TEST(JobSystem, JobSystemMainQueue)
 
     EXPECT_EQ(number, finalNumber);
 }
+
+TEST(JobSytem, JobSystemDependenciesStart)
+{
+    neko::JobSystem jobSystem;
+
+    int queueIndex = jobSystem.SetupNewQueue(1);
+
+    jobSystem.Begin();
+
+    constexpr int firstNumber = 1;
+    int number1 = firstNumber;
+    int number2 = firstNumber;
+    constexpr int secondNumber = 3;
+    auto firstJob = std::make_shared<neko::FuncJob>([&number1, &secondNumber](){
+
+        number1 = secondNumber;
+    });
+    jobSystem.AddJob(firstJob, queueIndex);
+    constexpr int thirdNumber = 4;
+    auto secondJob = std::make_shared<neko::FuncJob>([&number2, &thirdNumber](){
+
+        number2 = thirdNumber;
+    });
+    jobSystem.AddJob(secondJob, queueIndex);
+
+    constexpr int finalNumber = 5;
+    auto mainJob = std::make_shared<neko::FuncDependenciesJob>(
+            std::initializer_list<std::weak_ptr<neko::Job>>{firstJob, secondJob},
+            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber]()
+    {
+        EXPECT_NE(number1, firstNumber);
+        EXPECT_EQ(number1, secondNumber);
+        EXPECT_NE(number2, firstNumber);
+        EXPECT_EQ(number2, thirdNumber);
+        number1 = finalNumber;
+        number2 = finalNumber;
+    });
+    jobSystem.AddJob(mainJob, neko::MAIN_QUEUE_INDEX);
+    jobSystem.ExecuteMainThread();
+    jobSystem.End();
+
+    EXPECT_EQ(number1, finalNumber);
+    EXPECT_EQ(number2, finalNumber);
+}

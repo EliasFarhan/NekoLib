@@ -42,8 +42,6 @@ TEST(Engine, TestLinearAllocator)
         }
         *v = i;
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     allocator.Clear();
     std::free(data);
 
@@ -67,8 +65,6 @@ TEST(Engine, TestStackAllocator)
             v[j] = j;
         }
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::for_each(ptr.rbegin(), ptr.rend(), [&allocator](int* p) { allocator.Deallocate(p); });
     free(data);
 
@@ -91,8 +87,6 @@ TEST(Engine, TestFreeListAllocator)
             v[j] = j;
         }
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(ptr.begin(), ptr.end(), g);
@@ -120,8 +114,6 @@ TEST(Engine, TestPoolAllocator)
         v->id = i;
         v->radius = v->id / 3.0f;
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(ptr.begin(), ptr.end(), g);
