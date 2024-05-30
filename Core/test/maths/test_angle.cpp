@@ -1,9 +1,6 @@
-//
-// Created by unite on 22.05.2024.
-//
 
-#include <math/angle.h>
-#include <gtest/gtest.h>
+#include "math/angle.h"
+#include "gtest/gtest.h"
 
 struct DegreeFixture : public ::testing::TestWithParam<std::pair<float, float>>
 {};

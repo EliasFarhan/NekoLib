@@ -2,8 +2,8 @@
 // Created by unite on 22.05.2024.
 //
 
-#include <thread/job_system.h>
-#include <gtest/gtest.h>
+#include "thread/job_system.h"
+#include "gtest/gtest.h"
 
 
 TEST(JobSystem, FuncJob)
@@ -176,7 +176,7 @@ TEST(JobSystem, JobSystemMainQueue)
     EXPECT_EQ(number, finalNumber);
 }
 
-TEST(JobSytem, JobSystemDependenciesStart)
+TEST(JobSystem, JobSystemDependenciesStart)
 {
     neko::JobSystem jobSystem;
 
