@@ -6,10 +6,11 @@
 
 namespace neko {
 template<typename T>
-class Vec2 {
+class Vec2
+{
 public:
     T x{}, y{};
-    Vec2<T>(){}
+    Vec2<T>()= default;
     Vec2<T>(T x, T y): x(x), y(y){}
 
     template<class U>
@@ -18,6 +19,13 @@ public:
     [[nodiscard]] constexpr Vec2<T> operator+(Vec2<T> other) const
     {
         return {x + other.x, y + other.y};
+    }
+
+    constexpr Vec2<T>& operator+=(Vec2<T> other)
+    {
+        x += other.x;
+        y += other.y;
+        return *this;
     }
 
     [[nodiscard]] constexpr Vec2<T> operator-(Vec2<T> other) const
@@ -30,6 +38,13 @@ public:
         return {-x, -y};
     }
 
+    constexpr Vec2<T>& operator-=(Vec2<T> other)
+    {
+        x -= other.x;
+        y -= other.y;
+        return *this;
+    }
+
     [[nodiscard]] constexpr Vec2<T> operator*(T other) const
     {
         return {x * other, y * other};
@@ -40,9 +55,23 @@ public:
         return {x * other.x, y * other.y};
     }
 
+    constexpr Vec2<T>& operator*=(T other)
+    {
+        x *= other;
+        y *= other;
+        return *this;
+    }
+
     [[nodiscard]] constexpr Vec2<T> operator/(T other) const
     {
         return {x / other, y / other};
+    }
+
+    constexpr Vec2<T>& operator/=(T other)
+    {
+        x /= other;
+        y /= other;
+        return *this;
     }
 
     [[nodiscard]] constexpr static T Dot(Vec2<T> v1, Vec2<T> v2)
@@ -55,16 +84,24 @@ public:
         return Dot(*this, *this);
     }
 
-    [[nodiscard]] T Length() const requires std::is_floating_point_v<T>
+    [[nodiscard]] T Length() const
+        requires std::is_floating_point_v<T>
     {
         return std::sqrt(Dot(*this, *this));
     }
 
-    [[nodiscard]] constexpr static T Lerp(Vec2<T> v1, Vec2<T> v2, T t)requires std::is_floating_point_v<T>
+    [[nodiscard]] constexpr static T Lerp(Vec2<T> v1, Vec2<T> v2, T t)
+        requires std::is_floating_point_v<T>
     {
         return v1 + (v2 - v1) * t;
     }
 };
+
+template<typename T>
+Vec2<T> operator*(T value, Vec2<T> vector)
+{
+    return {value*vector.x, value*vector.y};
+}
 
 using Vec2f = Vec2<float>;
 using Vec2d = Vec2<double>;
