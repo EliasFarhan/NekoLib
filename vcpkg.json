@@ -2,6 +2,6 @@
   "name": "neko-lib",
   "version-string": "1.0",
   "dependencies": [
-    "gtest"
+    "gtest", "benchmark"
   ]
 }

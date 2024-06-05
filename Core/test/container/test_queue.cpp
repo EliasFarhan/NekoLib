@@ -15,15 +15,18 @@ TEST(Queue, PushAndPop)
     {
         q.Push(i);
     }
+    EXPECT_EQ(q.back(), 49);
     EXPECT_EQ(q.size(), 50);
     EXPECT_GE(q.capacity(), 50);
     const auto capacity = q.capacity();
 
     for(int i = 0; i < 25; i++)
     {
+        EXPECT_EQ(q.front(), i);
         q.Pop();
     }
 
+    EXPECT_EQ(q.back(), 49);
     EXPECT_EQ(q.size(), 25);
     EXPECT_EQ(q.capacity(), capacity);
 
@@ -32,4 +35,6 @@ TEST(Queue, PushAndPop)
         q.Push(i);
     }
     EXPECT_EQ(q.capacity(), capacity);
+    EXPECT_EQ(q.front(), 25);
+    EXPECT_EQ(q.back(), 74);
 }

@@ -15,13 +15,27 @@ class Queue
 public:
     void Push(const T& value)
     {
-        underlyingContainer_.push_back(value);
-        back_++;
+        if(underlyingContainer_.size() == size())
+        {
+            if (front_ != 0)
+            {
+                Rearrange();
+            }
+            underlyingContainer_.push_back(value);
+            back_++;
+        }
+        else
+        {
+            auto newBack = (back_ + 1)%underlyingContainer_.size();
+            underlyingContainer_[newBack] = value;
+            back_ = newBack;
+        }
     }
+
     void Pop()
     {
         underlyingContainer_[front_] = {};
-        front_ = (front_+1)%underlyingContainer_.size();
+        front_ = (front_+1) % underlyingContainer_.size();
     }
 
     T& front()
@@ -52,6 +66,11 @@ public:
     [[nodiscard]] auto capacity() const
     {
         return underlyingContainer_.capacity();
+    }
+
+    auto data()
+    {
+        return underlyingContainer_.data();
     }
 private:
     void Rearrange()
