@@ -10,13 +10,18 @@
 namespace neko
 {
 
-    template<typename T, std::size_t Capacity>
+    template<typename T, std::size_t Capacity, class Allocator = std::allocator<T>>
     class FixedVector
     {
     public:
         FixedVector()
         {
-            data.reserve(Capacity);
+            underlyingContainer_.reserve(Capacity);
+        }
+
+        FixedVector(const Allocator& allocator): underlyingContainer_(allocator)
+        {
+            underlyingContainer_.reserve(Capacity);
         }
 
         FixedVector(std::initializer_list<T> list)
@@ -26,107 +31,120 @@ namespace neko
                 // Over capacity construction
                 std::terminate();
             }
-            data.reserve(Capacity);
-            data = list;
+            underlyingContainer_.reserve(Capacity);
+            underlyingContainer_ = list;
         }
 
         auto begin()
         {
-            return data.begin();
+            return underlyingContainer_.begin();
         }
 
         auto end()
         {
-            return data.end();
+            return underlyingContainer_.end();
         }
 
         auto cbegin()
         {
-            return data.cbegin();
+            return underlyingContainer_.cbegin();
         }
 
         auto cend()
         {
-            return data.cend();
+            return underlyingContainer_.cend();
         }
 
         void push_back( const T& value )
         {
-            if(data.size() == data.capacity())
+            if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            data.push_back(value);
+            underlyingContainer_.push_back(value);
         }
 
         void push_back(T&& value)
         {
-            if(data.size() == data.capacity())
+            if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            data.push_back(std::move(value));
+            underlyingContainer_.push_back(std::move(value));
         }
 
         void clear()
         {
-            data.clear();
+            underlyingContainer_.clear();
         }
 
         T& operator[]( std::size_t pos )
         {
-            return data[pos];
+            return underlyingContainer_[pos];
         }
 
         const T& operator[]( std::size_t pos ) const
         {
-            return data[pos];
+            return underlyingContainer_[pos];
         }
         auto insert(std::vector<T>::const_iterator pos, const T& value )
         {
-            if(data.size() == data.capacity())
+            if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            return data.insert(pos, value);
+            return underlyingContainer_.insert(pos, value);
         }
 
         auto insert(std::vector<T>::const_iterator pos, T&& value )
         {
-            if(data.size() == data.capacity())
+            if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            return data.insert(pos, std::move(value));
+            return underlyingContainer_.insert(pos, std::move(value));
         }
         auto erase( std::vector<T>::iterator pos )
         {
-            return data.erase(pos);
+            return underlyingContainer_.erase(pos);
         }
         auto erase( std::vector<T>::const_iterator pos )
         {
-            return data.erase(pos);
+            return underlyingContainer_.erase(pos);
         }
 
         constexpr auto capacity() const
         {
-            if(data.capacity() != Capacity)
+            if(underlyingContainer_.capacity() != Capacity)
             {
                 //Bug with different capacity
                 std::terminate();
             }
-            return data.capacity();
+            return underlyingContainer_.capacity();
         }
         constexpr auto size() const
         {
-            return data.size();
+            return underlyingContainer_.size();
+        }
+
+        T& front()
+        {
+            return underlyingContainer_.front();
+        }
+        const T& front() const
+        {
+            return underlyingContainer_.front();
+        }
+        auto data() noexcept
+        {
+            return underlyingContainer_.data();
         }
     private:
-        std::vector<T> data;
+        std::vector<T, Allocator> underlyingContainer_;
     };
 }
 

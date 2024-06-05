@@ -18,3 +18,25 @@ TEST(FixedVector, IntializerList)
     EXPECT_EQ(v.capacity(), 10);
     EXPECT_EQ(v.size(), 3);
 }
+
+TEST(FixedVector, PushBack)
+{
+    neko::FixedVector<int, 10> v;
+
+    constexpr int newValue = 5;
+
+    v.push_back(newValue);
+    EXPECT_EQ(v.size(), 1);
+    EXPECT_EQ(v.front(), newValue);
+}
+
+TEST(FixedVector, PushOverCapacityDeathTest)
+{
+    neko::FixedVector<int, 10> v;
+
+    for(int i = 0; i < v.capacity(); i++)
+    {
+        v.push_back(i);
+    }
+    EXPECT_DEATH(v.push_back(0), "");
+}
