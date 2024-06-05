@@ -20,9 +20,9 @@ TEST_P(Vec2fFixture, Add)
 TEST_P(Vec2fFixture, Sub)
 {
     auto [v1, v2] = GetParam();
-    const auto result = v1-v2;
-    EXPECT_FLOAT_EQ(result.x, v1.x+v2.x);
-    EXPECT_FLOAT_EQ(result.y, v1.y+v2.y);
+    const auto result = v2-v1;
+    EXPECT_FLOAT_EQ(result.x, v2.x-v1.x);
+    EXPECT_FLOAT_EQ(result.y, v2.y-v1.y);
 
     v2 -= v1;
     EXPECT_FLOAT_EQ(v2.x, result.x);
