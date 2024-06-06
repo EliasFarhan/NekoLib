@@ -22,20 +22,24 @@ public:
                 Rearrange();
             }
             underlyingContainer_.push_back(value);
-            back_++;
+            size_++;
         }
         else
         {
-            auto newBack = (back_ + 1)%underlyingContainer_.size();
-            underlyingContainer_[newBack] = value;
-            back_ = newBack;
+            underlyingContainer_[(front_ + size_) % underlyingContainer_.size()] = value;
+            size_++;
         }
     }
 
     void Pop()
     {
+        if(size_ == 0)
+        {
+            std::terminate();
+        }
         underlyingContainer_[front_] = {};
         front_ = (front_+1) % underlyingContainer_.size();
+        size_--;
     }
 
     T& front()
@@ -48,27 +52,22 @@ public:
     }
     T& back()
     {
-        return underlyingContainer_[back_];
+        return underlyingContainer_[(front_+size_-1)%underlyingContainer_.size()];
     }
     const T& back() const
     {
-        return underlyingContainer_[back_];
+        return underlyingContainer_[(front_+size_-1)%underlyingContainer_.size()];
     }
     [[nodiscard]] auto size() const
     {
-        auto result = back_-front_;
-        if(result < 0)
-        {
-            result = (std::int64_t )underlyingContainer_.size()-result-1;
-        }
-        return (std::size_t)result;
+        return size_;
     }
     [[nodiscard]] auto capacity() const
     {
         return underlyingContainer_.capacity();
     }
 
-    auto data()
+    [[nodiscard]] auto data()
     {
         return underlyingContainer_.data();
     }
@@ -77,10 +76,9 @@ private:
     {
         std::rotate(underlyingContainer_.begin(), underlyingContainer_.begin()+front_, underlyingContainer_.end());
         front_ = 0;
-        back_ = underlyingContainer_.size()-1;
     }
     std::vector<T> underlyingContainer_;
-    std::int64_t front_ = 0, back_ = 0;
+    std::size_t front_ = 0, size_ = 0;
 };
 }
 

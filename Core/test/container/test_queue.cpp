@@ -33,7 +33,9 @@ TEST(Queue, PushAndPop)
     for(int i = 50; i < 75; i++)
     {
         q.Push(i);
+        EXPECT_EQ(q.size(), i-25+1);
     }
+    EXPECT_EQ(q.size(), 50);
     EXPECT_EQ(q.capacity(), capacity);
     EXPECT_EQ(q.front(), 25);
     EXPECT_EQ(q.back(), 74);
