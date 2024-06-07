@@ -6,6 +6,13 @@
 #include <gtest/gtest.h>
 
 
+TEST(Queue, InitializerListConstructor)
+{
+    neko::Queue<int> q = {1,2,3};
+    EXPECT_EQ(q.size(), 3);
+    EXPECT_EQ(q.front(), 1);
+    EXPECT_EQ(q.back(), 3);
+}
 
 TEST(Queue, PushAndPop)
 {
