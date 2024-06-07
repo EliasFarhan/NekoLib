@@ -39,4 +39,9 @@ TEST(Queue, PushAndPop)
     EXPECT_EQ(q.capacity(), capacity);
     EXPECT_EQ(q.front(), 25);
     EXPECT_EQ(q.back(), 74);
+
+    q.Push(75);
+    EXPECT_EQ(q.size(), 51);
+    EXPECT_GE(q.capacity(), capacity);
+    EXPECT_EQ(q.back(), 75);
 }
