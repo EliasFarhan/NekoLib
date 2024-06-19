@@ -128,6 +128,19 @@ TEST(JobSystem, Worker)
     EXPECT_EQ(number, finalNumber);
 }
 
+TEST(JobSystem, JobSystemSeveralQueuesEmpty)
+{
+    neko::JobSystem jobSystem;
+
+    int queueIndex = jobSystem.SetupNewQueue(5);
+
+    jobSystem.Begin();
+
+
+    jobSystem.End();
+
+}
+
 TEST(JobSystem, JobSystemOneQueue)
 {
     neko::JobSystem jobSystem;

@@ -20,3 +20,13 @@ if(NEKO_BENCHMARK)
         target_link_libraries(${EXE_NAME} NekoCore benchmark::benchmark)
     endforeach ()
 endif (NEKO_BENCHMARK)
+
+if(NEKO_SAMPLES)
+
+    file(GLOB_RECURSE SAMPLE_FILES samples/*.cpp)
+    foreach (BENCH_FILE ${SAMPLE_FILES})
+        get_filename_component(EXE_NAME ${BENCH_FILE} NAME_WE)
+        add_executable(${EXE_NAME} ${BENCH_FILE})
+        target_link_libraries(${EXE_NAME} NekoCore)
+    endforeach ()
+endif(NEKO_SAMPLES)

@@ -186,6 +186,8 @@ std::shared_ptr<Job> WorkerQueue::PopNextTask()
 void WorkerQueue::WaitForTask()
 {
     std::unique_lock lock(mutex_);
+    if(!isRunning_.load(std::memory_order_acquire))
+        return;
     conditionVariable_.wait(lock);
 }
 
@@ -218,7 +220,7 @@ void Worker::Run()
         {
             if (!queue_->IsRunning())
             {
-                break;
+                return;
             }
             queue_->WaitForTask();
         }

@@ -7,6 +7,7 @@ set (CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(NEKO_TEST "Activate tests" OFF)
 option(NEKO_BENCHMARK "Activate benchmarks" OFF)
+option(NEKO_SAMPLES "Activate samples" OFF)
 
 if(NEKO_TEST)
     enable_testing()
