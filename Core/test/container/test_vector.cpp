@@ -155,3 +155,40 @@ TEST(BasicVector, ConstructWithInitializerList)
     EXPECT_EQ(v2.size(), 6);
     EXPECT_GT(v2.capacity(), 5);
 }
+
+TEST(BasicVector, RangeBasedFor)
+{
+
+    neko::BasicVector<int, 5> v2{1,2,3,4,5,6};
+
+    int count = 0;
+    for(auto& elem: v2)
+    {
+        EXPECT_EQ(v2[count], elem);
+        count++;
+    }
+    EXPECT_EQ(count, v2.size());
+}
+
+TEST(BasicVector, Resize)
+{
+
+    neko::BasicVector<int, 5> v2;
+    v2.resize(5);
+    EXPECT_EQ(v2.size(), 5);
+}
+
+TEST(BasicVector, Algorithm)
+{
+
+    neko::BasicVector<int, 5> v2;
+    v2.resize(5);
+
+    int count = 0;
+    for(auto& elem: v2)
+    {
+        EXPECT_EQ(v2[count], elem);
+        count++;
+    }
+    EXPECT_EQ(count, v2.size());
+}

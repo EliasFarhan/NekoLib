@@ -336,47 +336,65 @@ namespace neko
             }
         }
 
-        auto begin()
+        class Iterator
+        {
+        public:
+            using iterator_category = std::contiguous_iterator_tag;
+            using difference_type   = std::ptrdiff_t;
+            using value_type        = T;
+            using pointer           = T*;  // or also value_type*
+            using reference         = T&;  // or also value_type&
+
+            Iterator(pointer ptr) : ptr_(ptr){}
+
+            reference operator*() const { return *ptr_; }
+            pointer operator->() { return ptr_; }
+
+            // Prefix increment
+            Iterator& operator++() { ptr_++; return *this; }
+
+            // Postfix increment
+            Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
+
+            friend bool operator== (const Iterator& a, const Iterator& b) { return a.ptr_ == b.ptr_; };
+            friend bool operator!= (const Iterator& a, const Iterator& b) { return a.ptr_ != b.ptr_; };
+        private:
+            pointer ptr_ = nullptr;
+        };
+
+        Iterator begin()
         {
             switch(underlyingContainer_.index())
             {
             case 0:
-                return std::get<0>(underlyingContainer_).begin();
+                return Iterator(std::get<0>(underlyingContainer_).data());
             case 1:
-                return std::get<1>(underlyingContainer_).begin();
+                return Iterator(std::get<1>(underlyingContainer_).data());
             }
         }
 
-        auto end()
+        Iterator end()
         {
             switch(underlyingContainer_.index())
             {
             case 0:
-                return std::get<0>(underlyingContainer_).end();
+            {
+                auto &array = std::get<0>(underlyingContainer_);
+                return Iterator(array.data() + size_);
+            }
             case 1:
-                return std::get<1>(underlyingContainer_).end();
+            {
+                auto &vector = std::get<1>(underlyingContainer_);
+                return Iterator(vector.data() + size_);
+            }
             }
         }
 
-        auto cbegin()
+        void resize(std::size_t newSize)
         {
-            switch(underlyingContainer_.index())
+            if(newSize > Capacity)
             {
-            case 0:
-                return std::get<0>(underlyingContainer_).cbegin();
-            case 1:
-                return std::get<1>(underlyingContainer_).cbegin();
-            }
-        }
 
-        auto cend()
-        {
-            switch(underlyingContainer_.index())
-            {
-            case 0:
-                return std::get<0>(underlyingContainer_).cend();
-            case 1:
-                return std::get<1>(underlyingContainer_).cend();
             }
         }
 
@@ -413,6 +431,8 @@ namespace neko
                 return std::get<0>(underlyingContainer_)[pos];
             case 1:
                 return std::get<1>(underlyingContainer_)[pos];
+            default:
+                std::terminate();
             }
         }
         auto insert(std::vector<T>::const_iterator pos, const T& value )
@@ -458,6 +478,14 @@ namespace neko
             return underlyingContainer_.data();
         }
     private:
+        void SwitchToHeap()
+        {
+            if(underlyingContainer_.index() != 0)
+                return;
+            auto& array = std::get<0>(underlyingContainer_);
+            std::vector<T, Allocator> v(array.begin(), array.end());
+            underlyingContainer_ = std::move(v);
+        }
         std::variant<SmallVector<T, Capacity>, std::vector<T, Allocator>> underlyingContainer_;
         std::size_t size_ = 0;
     };
