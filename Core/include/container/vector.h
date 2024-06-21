@@ -17,9 +17,9 @@ namespace neko
     class SmallVector
     {
     public:
-        SmallVector() = default;
+        constexpr SmallVector() = default;
 
-        SmallVector(std::initializer_list<T> list)
+        constexpr SmallVector(std::initializer_list<T> list)
         {
             const auto size = list.size();
             if(size > Capacity)
@@ -50,7 +50,7 @@ namespace neko
             return underlyingContainer_.cbegin()+size_;
         }
 
-        void push_back( const T& value )
+        constexpr void push_back( const T& value )
         {
             if(size_ == Capacity)
             {
@@ -61,7 +61,7 @@ namespace neko
             size_++;
         }
 
-        void push_back(T&& value)
+        constexpr void push_back(T&& value)
         {
             if(size_ == Capacity)
             {
@@ -72,7 +72,7 @@ namespace neko
             size_++;
         }
 
-        void clear()
+        constexpr void clear()
         {
             if constexpr (std::is_destructible_v<T>)
             {
@@ -84,17 +84,17 @@ namespace neko
             size_ = 0;
         }
 
-        T& operator[]( std::size_t pos )
+        constexpr T& operator[]( std::size_t pos )
         {
             return underlyingContainer_[pos];
         }
 
-        const T& operator[]( std::size_t pos ) const
+        constexpr const T& operator[]( std::size_t pos ) const
         {
             return underlyingContainer_[pos];
         }
 
-        auto insert(std::array<T, Capacity>::const_iterator pos, const T& value )
+        constexpr auto insert(std::array<T, Capacity>::const_iterator pos, const T& value )
         {
             if(size_ == Capacity)
             {
@@ -111,7 +111,7 @@ namespace neko
             return pos;
         }
 
-        auto insert(std::array<T, Capacity>::const_iterator pos, T&& value )
+        constexpr auto insert(std::array<T, Capacity>::const_iterator pos, T&& value )
         {
             if(size_ == Capacity)
             {
@@ -128,14 +128,14 @@ namespace neko
             return pos;
         }
 
-        auto erase( std::array<T, Capacity>::iterator pos )
+        constexpr auto erase( std::array<T, Capacity>::iterator pos )
         {
             std::move(pos+1, end(), pos);
             size_--;
             return pos;
         }
 
-        auto erase( std::array<T, Capacity>::const_iterator pos )
+        constexpr auto erase( std::array<T, Capacity>::const_iterator pos )
         {
             const auto index = std::distance(cbegin(), pos);
             for(auto i = index; i < size_-1; i++)
@@ -155,15 +155,15 @@ namespace neko
             return size_;
         }
 
-        T& front()
+        constexpr T& front()
         {
             return underlyingContainer_.front();
         }
-        const T& front() const
+        constexpr const T& front() const
         {
             return underlyingContainer_.front();
         }
-        auto data() noexcept
+        constexpr auto data() noexcept
         {
             return underlyingContainer_.data();
         }
@@ -177,17 +177,17 @@ namespace neko
     class FixedVector
     {
     public:
-        FixedVector()
+        constexpr FixedVector()
         {
             underlyingContainer_.reserve(Capacity);
         }
 
-        FixedVector(const Allocator& allocator): underlyingContainer_(allocator)
+        constexpr FixedVector(const Allocator& allocator): underlyingContainer_(allocator)
         {
             underlyingContainer_.reserve(Capacity);
         }
 
-        FixedVector(std::initializer_list<T> list)
+        constexpr FixedVector(std::initializer_list<T> list)
         {
             if(list.size() > Capacity)
             {
@@ -198,27 +198,27 @@ namespace neko
             underlyingContainer_ = list;
         }
 
-        auto begin()
+        constexpr auto begin()
         {
             return underlyingContainer_.begin();
         }
 
-        auto end()
+        constexpr auto end()
         {
             return underlyingContainer_.end();
         }
 
-        auto cbegin()
+        constexpr auto cbegin()
         {
             return underlyingContainer_.cbegin();
         }
 
-        auto cend()
+        constexpr auto cend()
         {
             return underlyingContainer_.cend();
         }
 
-        void push_back( const T& value )
+        constexpr void push_back( const T& value )
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -228,7 +228,7 @@ namespace neko
             underlyingContainer_.push_back(value);
         }
 
-        void push_back(T&& value)
+        constexpr void push_back(T&& value)
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -238,21 +238,21 @@ namespace neko
             underlyingContainer_.push_back(std::move(value));
         }
 
-        void clear()
+        constexpr void clear()
         {
             underlyingContainer_.clear();
         }
 
-        T& operator[]( std::size_t pos )
+        constexpr T& operator[]( std::size_t pos )
         {
             return underlyingContainer_[pos];
         }
 
-        const T& operator[]( std::size_t pos ) const
+        constexpr const T& operator[]( std::size_t pos ) const
         {
             return underlyingContainer_[pos];
         }
-        auto insert(std::vector<T>::const_iterator pos, const T& value )
+        constexpr auto insert(std::vector<T>::const_iterator pos, const T& value )
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -262,7 +262,7 @@ namespace neko
             return underlyingContainer_.insert(pos, value);
         }
 
-        auto insert(std::vector<T>::const_iterator pos, T&& value )
+        constexpr auto insert(std::vector<T>::const_iterator pos, T&& value )
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -271,11 +271,11 @@ namespace neko
             }
             return underlyingContainer_.insert(pos, std::move(value));
         }
-        auto erase( std::vector<T>::iterator pos )
+        constexpr auto erase( std::vector<T>::iterator pos )
         {
             return underlyingContainer_.erase(pos);
         }
-        auto erase( std::vector<T>::const_iterator pos )
+        constexpr auto erase( std::vector<T>::const_iterator pos )
         {
             return underlyingContainer_.erase(pos);
         }
@@ -294,15 +294,15 @@ namespace neko
             return underlyingContainer_.size();
         }
 
-        T& front()
+        constexpr T& front()
         {
             return underlyingContainer_.front();
         }
-        const T& front() const
+        constexpr const T& front() const
         {
             return underlyingContainer_.front();
         }
-        auto data() noexcept
+        constexpr auto data() noexcept
         {
             return underlyingContainer_.data();
         }
@@ -314,16 +314,17 @@ namespace neko
     class BasicVector
     {
     public:
-        BasicVector()
+        constexpr BasicVector()
         {
+
         }
 
-        BasicVector(const Allocator& allocator): underlyingContainer_(allocator)
+        constexpr BasicVector(const Allocator& allocator): underlyingContainer_(allocator)
         {
             underlyingContainer_.reserve(Capacity);
         }
 
-        BasicVector(std::initializer_list<T> list)
+        constexpr BasicVector(std::initializer_list<T> list)
         {
             size_ = list.size();
             if(size_ > Capacity)
@@ -345,24 +346,24 @@ namespace neko
             using pointer           = T*;  // or also value_type*
             using reference         = T&;  // or also value_type&
 
-            Iterator(pointer ptr) : ptr_(ptr){}
+            constexpr Iterator(pointer ptr) : ptr_(ptr){}
 
-            reference operator*() const { return *ptr_; }
-            pointer operator->() { return ptr_; }
+            constexpr reference operator*() const { return *ptr_; }
+            constexpr pointer operator->() { return ptr_; }
 
             // Prefix increment
-            Iterator& operator++() { ptr_++; return *this; }
+            constexpr Iterator& operator++() { ptr_++; return *this; }
 
             // Postfix increment
-            Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
+            constexpr Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
 
-            friend bool operator== (const Iterator& a, const Iterator& b) { return a.ptr_ == b.ptr_; };
-            friend bool operator!= (const Iterator& a, const Iterator& b) { return a.ptr_ != b.ptr_; };
+            constexpr friend bool operator== (const Iterator& a, const Iterator& b) { return a.ptr_ == b.ptr_; };
+            constexpr friend bool operator!= (const Iterator& a, const Iterator& b) { return a.ptr_ != b.ptr_; };
         private:
             pointer ptr_ = nullptr;
         };
 
-        Iterator begin()
+        constexpr Iterator begin()
         {
             switch(underlyingContainer_.index())
             {
@@ -370,10 +371,12 @@ namespace neko
                 return Iterator(std::get<0>(underlyingContainer_).data());
             case 1:
                 return Iterator(std::get<1>(underlyingContainer_).data());
+            default:
+                std::terminate();
             }
         }
 
-        Iterator end()
+        constexpr Iterator end()
         {
             switch(underlyingContainer_.index())
             {
@@ -387,6 +390,8 @@ namespace neko
                 auto &vector = std::get<1>(underlyingContainer_);
                 return Iterator(vector.data() + size_);
             }
+            default:
+                std::terminate();
             }
         }
 
@@ -394,22 +399,75 @@ namespace neko
         {
             if(newSize > Capacity)
             {
+                SwitchToHeap();
 
             }
         }
 
         void push_back( const T& value )
         {
-
+            if(size_ >= Capacity)
+            {
+                SwitchToHeap();
+            }
+            switch(underlyingContainer_.index())
+            {
+            case 0:
+            {
+                auto& array = std::get<0>(underlyingContainer_);
+                array[size_] = value;
+                break;
+            }
+            case 1:
+                std::get<1>(underlyingContainer_).push_back(value);
+                break;
+            default:
+                std::terminate();
+            }
+            size_++;
         }
 
         void push_back(T&& value)
         {
-
+            if(size_ >= Capacity)
+            {
+                SwitchToHeap();
+            }
+            switch(underlyingContainer_.index())
+            {
+            case 0:
+            {
+                auto& array = std::get<0>(underlyingContainer_);
+                array[size_] = std::move(value);
+                break;
+            }
+            case 1:
+                std::get<1>(underlyingContainer_).push_back(std::move(value));
+                break;
+            default:
+                std::terminate();
+            }
+            size_++;
         }
 
         void clear()
         {
+            if(underlyingContainer_.index() == 1)
+            {
+                std::get<1>(underlyingContainer_).clear();
+                underlyingContainer_ = SmallVector<T, Capacity>();
+                size_ = 0;
+                return;
+            }
+
+            if constexpr (std::is_destructible_v<T>)
+            {
+                for(auto it = begin(); it != end(); it++)
+                {
+                    (*it).~T();
+                }
+            }
+            size_ = 0;
         }
 
         T& operator[]( std::size_t pos )
@@ -420,6 +478,8 @@ namespace neko
                 return std::get<0>(underlyingContainer_)[pos];
             case 1:
                 return std::get<1>(underlyingContainer_)[pos];
+            default:
+                std::terminate();
             }
         }
 
@@ -467,11 +527,31 @@ namespace neko
 
         T& front()
         {
-            return underlyingContainer_.front();
+            switch(underlyingContainer_.index())
+            {
+            case 0:
+            {
+                return std::get<0>(underlyingContainer_)[0];
+            }
+            case 1:
+                return std::get<1>(underlyingContainer_)[0];
+            default:
+                std::terminate();
+            }
         }
         const T& front() const
         {
-            return underlyingContainer_.front();
+            switch(underlyingContainer_.index())
+            {
+            case 0:
+            {
+                return std::get<0>(underlyingContainer_)[0];
+            }
+            case 1:
+                return std::get<1>(underlyingContainer_)[0];
+            default:
+                std::terminate();
+            }
         }
         auto data() noexcept
         {

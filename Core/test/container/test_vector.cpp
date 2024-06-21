@@ -172,7 +172,6 @@ TEST(BasicVector, RangeBasedFor)
 
 TEST(BasicVector, Resize)
 {
-
     neko::BasicVector<int, 5> v2;
     v2.resize(5);
     EXPECT_EQ(v2.size(), 5);
