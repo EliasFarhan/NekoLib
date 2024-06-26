@@ -84,6 +84,32 @@ namespace neko
             size_ = 0;
         }
 
+        constexpr void resize(std::size_t newSize)
+        {
+            if(size_ == newSize)
+            {
+                return;
+            }
+            if(size_ < newSize)
+            {
+                for (auto i = size_; i < newSize; i++)
+                {
+                    underlyingContainer_[i] = {};
+                }
+            }
+            else
+            {
+                if constexpr (std::is_destructible_v<T>)
+                {
+                    for (auto i = newSize; i < size_; i++)
+                    {
+                        underlyingContainer_[i].~T();
+                    }
+                }
+            }
+            size_ = newSize;
+        }
+
         constexpr T& operator[]( std::size_t pos )
         {
             return underlyingContainer_[pos];
@@ -94,7 +120,7 @@ namespace neko
             return underlyingContainer_[pos];
         }
 
-        constexpr auto insert(std::array<T, Capacity>::const_iterator pos, const T& value )
+        constexpr typename std::array<T, Capacity>::const_iterator insert(typename std::array<T, Capacity>::const_iterator pos, const T& value )
         {
             if(size_ == Capacity)
             {
@@ -111,7 +137,7 @@ namespace neko
             return pos;
         }
 
-        constexpr auto insert(std::array<T, Capacity>::const_iterator pos, T&& value )
+        constexpr typename std::array<T, Capacity>::const_iterator insert(typename std::array<T, Capacity>::const_iterator pos, T&& value )
         {
             if(size_ == Capacity)
             {
@@ -128,14 +154,14 @@ namespace neko
             return pos;
         }
 
-        constexpr auto erase( std::array<T, Capacity>::iterator pos )
+        constexpr auto erase(typename  std::array<T, Capacity>::iterator pos )
         {
             std::move(pos+1, end(), pos);
             size_--;
             return pos;
         }
 
-        constexpr auto erase( std::array<T, Capacity>::const_iterator pos )
+        constexpr auto erase(typename  std::array<T, Capacity>::const_iterator pos )
         {
             const auto index = std::distance(cbegin(), pos);
             for(auto i = index; i < size_-1; i++)
@@ -252,7 +278,7 @@ namespace neko
         {
             return underlyingContainer_[pos];
         }
-        constexpr auto insert(std::vector<T>::const_iterator pos, const T& value )
+        constexpr auto insert(typename std::vector<T>::const_iterator pos, const T& value )
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -262,7 +288,7 @@ namespace neko
             return underlyingContainer_.insert(pos, value);
         }
 
-        constexpr auto insert(std::vector<T>::const_iterator pos, T&& value )
+        constexpr auto insert(typename std::vector<T>::const_iterator pos, T&& value )
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
@@ -271,11 +297,11 @@ namespace neko
             }
             return underlyingContainer_.insert(pos, std::move(value));
         }
-        constexpr auto erase( std::vector<T>::iterator pos )
+        constexpr auto erase(typename  std::vector<T>::iterator pos )
         {
             return underlyingContainer_.erase(pos);
         }
-        constexpr auto erase( std::vector<T>::const_iterator pos )
+        constexpr auto erase(typename  std::vector<T>::const_iterator pos )
         {
             return underlyingContainer_.erase(pos);
         }
@@ -400,7 +426,15 @@ namespace neko
             if(newSize > Capacity)
             {
                 SwitchToHeap();
-
+                auto& vector = std::get<1>(underlyingContainer_);
+                vector.resize(newSize);
+                size_ = vector.size();
+            }
+            else
+            {
+                auto &array = std::get<0>(underlyingContainer_);
+                array.resize(newSize);
+                size_ = array.size();
             }
         }
 
@@ -495,17 +529,14 @@ namespace neko
                 std::terminate();
             }
         }
-        auto insert(std::vector<T>::const_iterator pos, const T& value )
+        auto insert(Iterator pos, const T& value )
         {
         }
 
-        auto insert(std::vector<T>::const_iterator pos, T&& value )
+        auto insert(Iterator pos, T&& value )
         {
         }
-        auto erase( std::vector<T>::iterator pos )
-        {
-        }
-        auto erase( std::vector<T>::const_iterator pos )
+        auto erase(Iterator pos )
         {
         }
 
