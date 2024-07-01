@@ -2,8 +2,10 @@
 cmake_minimum_required(VERSION 3.16)
 
 
-set (CMAKE_CXX_STANDARD 20)
+set (CMAKE_CXX_STANDARD 17)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
+
+add_compile_definitions(_USE_MATH_DEFINES)
 
 option(NEKO_TEST "Activate tests" OFF)
 option(NEKO_BENCHMARK "Activate benchmarks" OFF)

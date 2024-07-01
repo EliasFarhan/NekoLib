@@ -85,13 +85,11 @@ public:
     }
 
     [[nodiscard]] T Length() const
-        requires std::is_floating_point_v<T>
     {
         return std::sqrt(Dot(*this, *this));
     }
 
     [[nodiscard]] constexpr static T Lerp(Vec2<T> v1, Vec2<T> v2, T t)
-        requires std::is_floating_point_v<T>
     {
         return v1 + (v2 - v1) * t;
     }

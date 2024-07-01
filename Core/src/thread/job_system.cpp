@@ -193,7 +193,7 @@ void WorkerQueue::WaitForTask()
 
 void WorkerQueue::End()
 {
-    isRunning_.store(false, std::memory_order::release);
+    isRunning_.store(false, std::memory_order_release);
     conditionVariable_.notify_all();
 }
 
