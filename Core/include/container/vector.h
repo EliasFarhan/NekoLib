@@ -314,14 +314,14 @@ namespace neko
     class BasicVector
     {
     public:
-        constexpr BasicVector()
+        constexpr BasicVector() : allocator_(std::allocator<T>())
         {
-
+            underlyingContainer_ = SmallVector<T, Capacity>();
         }
 
-        constexpr BasicVector(const Allocator& allocator): underlyingContainer_(allocator)
+        constexpr BasicVector(const Allocator& allocator): allocator_(allocator)
         {
-            underlyingContainer_.reserve(Capacity);
+            underlyingContainer_ = SmallVector<T, Capacity>();
         }
 
         constexpr BasicVector(std::initializer_list<T> list)
@@ -563,10 +563,11 @@ namespace neko
             if(underlyingContainer_.index() != 0)
                 return;
             auto& array = std::get<0>(underlyingContainer_);
-            std::vector<T, Allocator> v(array.begin(), array.end());
+            std::vector<T, Allocator> v(array.begin(), array.end(), allocator_);
             underlyingContainer_ = std::move(v);
         }
         std::variant<SmallVector<T, Capacity>, std::vector<T, Allocator>> underlyingContainer_;
+        Allocator allocator_;
         std::size_t size_ = 0;
     };
 }
