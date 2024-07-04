@@ -2,12 +2,11 @@
 #define NEKOLIB_ANGLE_H
 
 #include <cmath>
-#include <numbers>
 
 namespace neko
 {
 
-inline constexpr static float PI = std::numbers::pi_v<float>;
+inline constexpr static float PI = M_PI;
 class Degree;
 /**
  * \brief Radian is an utility class that describes radian angles (0 to 2PI).

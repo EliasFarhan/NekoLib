@@ -120,7 +120,7 @@ TEST(JobSystem, Worker)
 
     int number = 0;
     constexpr int finalNumber = 3;
-    queue.AddJob(std::make_shared<neko::FuncJob>([&number](){number = finalNumber;}));
+    queue.AddJob(std::make_shared<neko::FuncJob>([&number, finalNumber](){number = finalNumber;}));
 
     // WorkerQueue must be destroyed before the Worker
     queue.End();
@@ -151,7 +151,7 @@ TEST(JobSystem, JobSystemOneQueue)
 
     int number = 0;
     constexpr int finalNumber = 3;
-    jobSystem.AddJob(std::make_shared<neko::FuncJob>([&number](){number = finalNumber;}), queueIndex);
+    jobSystem.AddJob(std::make_shared<neko::FuncJob>([&number, finalNumber](){number = finalNumber;}), queueIndex);
 
     jobSystem.End();
 
@@ -169,14 +169,15 @@ TEST(JobSystem, JobSystemMainQueue)
     constexpr int firstNumber = 1;
     int number = firstNumber;
     constexpr int secondNumber = 3;
-    auto firstJob = std::make_shared<neko::FuncJob>([&number, &firstNumber](){
+    auto firstJob = std::make_shared<neko::FuncJob>([&number, &firstNumber, &secondNumber](){
         EXPECT_EQ(number, firstNumber);
         number = secondNumber;
     });
     jobSystem.AddJob(firstJob, queueIndex);
 
     constexpr int finalNumber = 5;
-    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob, [&number, &firstNumber, &secondNumber]()
+    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob,
+                                                            [&number, &firstNumber, &secondNumber, &finalNumber]()
     {
         EXPECT_NE(number, firstNumber);
         EXPECT_EQ(number, secondNumber);
@@ -216,7 +217,7 @@ TEST(JobSystem, JobSystemDependenciesStart)
     constexpr int finalNumber = 5;
     auto mainJob = std::make_shared<neko::FuncDependenciesJob>(
             std::initializer_list<std::weak_ptr<neko::Job>>{firstJob, secondJob},
-            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber]()
+            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber, &finalNumber]()
     {
         EXPECT_NE(number1, firstNumber);
         EXPECT_EQ(number1, secondNumber);

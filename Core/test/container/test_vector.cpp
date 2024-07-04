@@ -175,6 +175,12 @@ TEST(BasicVector, Resize)
     neko::BasicVector<int, 5> v2;
     v2.resize(5);
     EXPECT_EQ(v2.size(), 5);
+
+    v2.resize(3);
+    EXPECT_EQ(v2.size(), 3);
+
+    v2.resize(10);
+    EXPECT_EQ(v2.size(), 10);
 }
 
 TEST(BasicVector, Algorithm)

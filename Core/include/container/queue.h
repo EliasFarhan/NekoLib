@@ -6,6 +6,8 @@
 #define NEKOLIB_QUEUE_H
 
 #include <vector>
+#include <exception>
+#include <array>
 
 namespace neko
 {
