@@ -19,7 +19,7 @@ static void BM_PushNekoQueue(benchmark::State& state)
 
         for(std::size_t i = 0; i < n; i++)
         {
-            q.Push((int)i);
+            q.push((int) i);
         }
         benchmark::DoNotOptimize(q.front());
         benchmark::ClobberMemory();
@@ -59,12 +59,12 @@ static void BM_PopNekoQueue(benchmark::State& state)
         neko::Queue<int> q;
         for(std::size_t i = 0; i < n+1; i++)
         {
-            q.Push((int)i);
+            q.push((int) i);
         }
         state.ResumeTiming();
         for (std::size_t i = 0; i < n; i++)
         {
-            q.Pop();
+            q.pop();
         }
 
         benchmark::DoNotOptimize(q.front());
@@ -111,20 +111,20 @@ static void BM_PushAfterPopNekoQueue(benchmark::State& state)
         neko::Queue<int> q;
         for(std::size_t i = 0; i < n; i++)
         {
-            q.Push((int)i);
+            q.push((int) i);
         }
 
         for (std::size_t i = 0; i < n/2; i++)
         {
-            q.Pop();
+            q.pop();
         }
         for (std::size_t i = 0; i < n/2; i++)
         {
-            q.Push((int)i);
+            q.push((int) i);
         }
         state.ResumeTiming();
         // This should trigger a Rearrange
-        q.Push(12);
+        q.push(12);
 
         benchmark::DoNotOptimize(q.front());
         benchmark::ClobberMemory();

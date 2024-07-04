@@ -20,11 +20,11 @@ public:
     {
         size_ = list.size();
     }
-    constexpr void Reserve(std::size_t newCapacity)
+    constexpr void reserve(std::size_t newCapacity)
     {
         underlyingContainer_.reserve(newCapacity);
     }
-    constexpr void Push(const T& value)
+    constexpr void push(const T& value)
     {
         if(underlyingContainer_.size() == size())
         {
@@ -42,7 +42,7 @@ public:
         }
     }
 
-    constexpr void Pop()
+    constexpr void pop()
     {
         if(size_ == 0)
         {
@@ -96,7 +96,7 @@ template<typename T, std::size_t Capacity>
 class FixedQueue
 {
 public:
-    constexpr void Push(const T& value)
+    constexpr void push(const T& value)
     {
         if(underlyingContainer_.size() == size())
         {
@@ -106,7 +106,7 @@ public:
         size_++;
     }
 
-    constexpr void Push(T&& value)
+    constexpr void push(T&& value)
     {
         if(underlyingContainer_.size() == size())
         {
@@ -116,7 +116,7 @@ public:
         size_++;
     }
 
-    constexpr void Pop()
+    constexpr void pop()
     {
         if(size_ == 0)
         {

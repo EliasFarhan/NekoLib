@@ -340,7 +340,7 @@ namespace neko
     class BasicVector
     {
     public:
-        constexpr BasicVector() : allocator_(std::allocator<T>())
+        constexpr BasicVector() : allocator_(Allocator())
         {
             underlyingContainer_ = SmallVector<T, Capacity>();
         }

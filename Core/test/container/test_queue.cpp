@@ -20,7 +20,7 @@ TEST(Queue, PushAndPop)
 
     for(int i = 0; i < 50; i++)
     {
-        q.Push(i);
+        q.push(i);
     }
     EXPECT_EQ(q.back(), 49);
     EXPECT_EQ(q.size(), 50);
@@ -30,7 +30,7 @@ TEST(Queue, PushAndPop)
     for(int i = 0; i < 25; i++)
     {
         EXPECT_EQ(q.front(), i);
-        q.Pop();
+        q.pop();
     }
 
     EXPECT_EQ(q.back(), 49);
@@ -39,7 +39,7 @@ TEST(Queue, PushAndPop)
 
     for(int i = 50; i < 75; i++)
     {
-        q.Push(i);
+        q.push(i);
         EXPECT_EQ(q.size(), i-25+1);
     }
     EXPECT_EQ(q.size(), 50);
@@ -47,7 +47,7 @@ TEST(Queue, PushAndPop)
     EXPECT_EQ(q.front(), 25);
     EXPECT_EQ(q.back(), 74);
 
-    q.Push(75);
+    q.push(75);
     EXPECT_EQ(q.size(), 51);
     EXPECT_GE(q.capacity(), capacity);
     EXPECT_EQ(q.back(), 75);

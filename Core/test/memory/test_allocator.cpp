@@ -26,7 +26,7 @@ TEST(CustomAllocator, Alignment)
 
 }
 
-TEST(Engine, TestLinearAllocator)
+TEST(CustomAllocator, TestLinearAllocator)
 {
     const size_t length = 100;
     void* data = calloc(length + 1, sizeof(int));
@@ -47,7 +47,7 @@ TEST(Engine, TestLinearAllocator)
 
 }
 
-TEST(Engine, TestStackAllocator)
+TEST(CustomAllocator, TestStackAllocator)
 {
     const size_t length = 100;
     const size_t allocateNmb = 5;
@@ -70,7 +70,7 @@ TEST(Engine, TestStackAllocator)
 
 }
 
-TEST(Engine, TestFreeListAllocator)
+TEST(CustomAllocator, TestFreeListAllocator)
 {
     const size_t length = 100;
     const size_t allocateNmb = 10;
@@ -95,7 +95,7 @@ TEST(Engine, TestFreeListAllocator)
 
 }
 
-TEST(Engine, TestPoolAllocator)
+TEST(CustomAllocator, TestPoolAllocator)
 {
     struct Prout
     {
