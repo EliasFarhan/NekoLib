@@ -8,6 +8,7 @@
 #include <vector>
 #include <exception>
 #include <array>
+#include <algorithm>
 
 namespace neko
 {
