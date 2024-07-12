@@ -56,8 +56,8 @@ private:
 class FuncDependentJob : public FuncJob
 {
 public:
-    FuncDependentJob(std::weak_ptr<Job> dependency, const std::function<void(void)>& func) :
-            dependency_(std::move(dependency)),
+    FuncDependentJob(Job* dependency, const std::function<void(void)>& func) :
+            dependency_(dependency),
             FuncJob(func)
     {
 
@@ -66,7 +66,7 @@ public:
     bool ShouldStart() const override;
     bool CheckDependency(const Job *ptr) const override;
 private:
-    std::weak_ptr<Job> dependency_{};
+    Job* dependency_{};
 };
 
 class FuncDependenciesJob: public FuncJob
@@ -74,16 +74,16 @@ class FuncDependenciesJob: public FuncJob
 public:
     FuncDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
     {}
-    FuncDependenciesJob(std::initializer_list<std::weak_ptr<Job>> dependencies, const std::function<void(void)>& func):
+    FuncDependenciesJob(std::initializer_list<Job*> dependencies, const std::function<void(void)>& func):
             FuncJob(func), dependencies_(dependencies)
     {}
     [[nodiscard]] bool ShouldStart() const override;
 
-    bool AddDependency(const std::weak_ptr<Job>& dependency);
+    bool AddDependency(Job* dependency);
     void Execute() override;
 protected:
     bool CheckDependency(const Job *ptr) const override;
-    std::vector<std::weak_ptr<Job>> dependencies_{};
+    std::vector<Job*> dependencies_{};
 };
 
 class WorkerQueue
@@ -96,15 +96,15 @@ public:
     WorkerQueue& operator= (WorkerQueue&&) noexcept{ return *this; }
 
     void Begin();
-    void AddJob(const std::shared_ptr<Job>& newJob);
+    void AddJob(Job* newJob);
     bool IsEmpty() const;
     bool IsRunning() const;
-    std::shared_ptr<Job> PopNextTask();
+    Job* PopNextTask();
     void WaitForTask();
     void End();
 private:
     mutable std::shared_mutex mutex_;
-    std::queue<std::shared_ptr<Job>> jobsQueue_;
+    std::queue<Job*> jobsQueue_;
     std::condition_variable_any conditionVariable_;
     std::atomic<bool> isRunning_{ false };
 };
@@ -142,7 +142,7 @@ public:
      * @brief Begin is a member function that starts the queues and threads of the JobSystem.
      */
     void Begin();
-    void AddJob(const std::shared_ptr<Job>& newJob, int queueIndex = MAIN_QUEUE_INDEX);
+    void AddJob(Job* newJob, int queueIndex = MAIN_QUEUE_INDEX);
     void End();
     void ExecuteMainThread();
 private:

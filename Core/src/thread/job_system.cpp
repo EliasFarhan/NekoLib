@@ -63,10 +63,9 @@ void FuncJob::ExecuteImpl()
 
 bool FuncDependentJob::ShouldStart() const
 {
-    const auto dependencyJob = dependency_.lock();
-    if(dependencyJob != nullptr)
+    if(dependency_ != nullptr)
     {
-        return dependencyJob->HasStarted();
+        return dependency_->HasStarted();
     }
     return false;
 }
@@ -77,7 +76,7 @@ bool FuncDependentJob::CheckDependency(const Job *ptr) const
     {
         return true;
     }
-    auto dep = dependency_.lock();
+    auto dep = dependency_;
     if(dep != nullptr) {
         return dep->CheckDependency(ptr);
     }
@@ -86,9 +85,9 @@ bool FuncDependentJob::CheckDependency(const Job *ptr) const
 
 void FuncDependentJob::Execute()
 {
-    if(auto ptr = dependency_.lock())
+    if(dependency_ != nullptr)
     {
-        ptr->Join();
+		dependency_->Join();
     }
     Job::Execute();
 }
@@ -98,8 +97,7 @@ bool FuncDependenciesJob::ShouldStart() const
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
     {
-        const auto dependencyJob = dependency.lock();
-        if (dependencyJob != nullptr && !dependencyJob->HasStarted())
+        if (dependency != nullptr && !dependency->HasStarted())
         {
             shouldStart = false;
             break;
@@ -108,10 +106,9 @@ bool FuncDependenciesJob::ShouldStart() const
     return shouldStart;
 }
 
-bool FuncDependenciesJob::AddDependency(const std::weak_ptr<Job>& dependency)
+bool FuncDependenciesJob::AddDependency(Job* dependency)
 {
-    auto newDependency = dependency.lock();
-    if(newDependency == nullptr || newDependency->CheckDependency(this))
+    if(dependency == nullptr || dependency->CheckDependency(this))
     {
         return false;
     }
@@ -125,23 +122,18 @@ bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
     {
         return true;
     }
-    for(auto& dependency: dependencies_)
-    {
-        if(dependency.lock()->CheckDependency(ptr))
-        {
-            return true;
-        }
-    }
-    return false;
+	return std::any_of(dependencies_.begin(), dependencies_.end(), [ptr](const auto* dep){
+		return dep->CheckDependency(ptr);
+	});
 }
 
 void FuncDependenciesJob::Execute()
 {
     for(auto& dependency : dependencies_)
     {
-        if(auto ptr = dependency.lock())
+        if(dependency != nullptr)
         {
-            ptr->Join();
+			dependency->Join();
         }
     }
     Job::Execute();
@@ -152,7 +144,7 @@ void WorkerQueue::Begin()
     isRunning_.store(true, std::memory_order_release);
 }
 
-void WorkerQueue::AddJob(const std::shared_ptr<Job>& newJob)
+void WorkerQueue::AddJob(Job* newJob)
 {
     std::scoped_lock lock(mutex_);
     jobsQueue_.push(newJob);
@@ -170,7 +162,7 @@ bool WorkerQueue::IsRunning() const
     return isRunning_.load(std::memory_order_acquire);
 }
 
-std::shared_ptr<Job> WorkerQueue::PopNextTask()
+Job* WorkerQueue::PopNextTask()
 {
     if (IsEmpty())
         return nullptr;
@@ -250,7 +242,7 @@ void Worker::Run()
             continue;
         if (!newTask->ShouldStart())
         {
-            queue_->AddJob(std::move(newTask));
+            queue_->AddJob(newTask);
         }
         else
         {
@@ -268,7 +260,7 @@ JobSystem::JobSystem()
 
 int JobSystem::SetupNewQueue(int threadCount)
 {
-    const int newQueueIndex = queues_.size();
+    const int newQueueIndex = (int)queues_.size();
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {
@@ -289,7 +281,7 @@ void JobSystem::Begin()
     }
 }
 
-void JobSystem::AddJob(const std::shared_ptr<Job>& newJob, int queueIndex)
+void JobSystem::AddJob(Job* newJob, int queueIndex)
 {
     newJob->Reset();
     if(queueIndex == MAIN_QUEUE_INDEX)
@@ -319,7 +311,7 @@ void JobSystem::ExecuteMainThread()
         auto newTask = mainThreadQueue_.PopNextTask();
         if (!newTask->ShouldStart())
         {
-            mainThreadQueue_.AddJob(std::move(newTask));
+            mainThreadQueue_.AddJob(newTask);
         }
         else
         {

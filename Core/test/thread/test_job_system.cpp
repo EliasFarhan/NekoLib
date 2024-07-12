@@ -29,12 +29,12 @@ TEST(JobSystem, FuncJob)
 
 TEST(JobSystem, DependencyJob)
 {
-    auto parentJob = std::make_shared<neko::FuncJob>( [](){} );
-    neko::FuncDependentJob job{parentJob, [](){} };
+	neko::FuncJob parentJob( [](){} );
+    neko::FuncDependentJob job{&parentJob, [](){} };
 
     EXPECT_FALSE(job.ShouldStart());
 
-    parentJob->Execute();
+    parentJob.Execute();
 
     EXPECT_TRUE(job.ShouldStart());
     job.Execute();
@@ -43,21 +43,21 @@ TEST(JobSystem, DependencyJob)
 
 TEST(JobSystem, DependenciesJob)
 {
-    auto parentJob1 = std::make_shared<neko::FuncJob>( [](){} );
-    auto parentJob2 = std::make_shared<neko::FuncJob>( [](){} );
-    auto parentJob3 = std::make_shared<neko::FuncJob>( [](){} );
-    neko::FuncDependenciesJob job{{parentJob1, parentJob2}, [](){} };
+    neko::FuncJob parentJob1 ( [](){} );
+    neko::FuncJob parentJob2 ( [](){} );
+    neko::FuncJob parentJob3 ( [](){} );
+    neko::FuncDependenciesJob job{{&parentJob1, &parentJob2}, [](){} };
 
     EXPECT_FALSE(job.ShouldStart());
 
-    parentJob1->Execute();
+    parentJob1.Execute();
     EXPECT_FALSE(job.ShouldStart());
-    parentJob2->Execute();
+    parentJob2.Execute();
     EXPECT_TRUE(job.ShouldStart());
 
-    job.AddDependency(parentJob3);
+    job.AddDependency(&parentJob3);
     EXPECT_FALSE(job.ShouldStart());
-    parentJob3->Execute();
+    parentJob3.Execute();
     EXPECT_TRUE(job.ShouldStart());
 
 
@@ -67,17 +67,17 @@ TEST(JobSystem, DependenciesJob)
 
 TEST(JobSystem, CyclicDependenciesJob)
 {
-    auto parentJob1 = std::make_shared<neko::FuncDependenciesJob>( [](){} );
-    auto parentJob2 = std::make_shared<neko::FuncDependentJob>( parentJob1, [](){} );
-    auto parentJob3 = std::make_shared<neko::FuncJob>( [](){} );
+	neko::FuncDependenciesJob parentJob1( [](){} );
+	neko::FuncDependentJob parentJob2 ( &parentJob1, [](){} );
+	neko::FuncJob parentJob3( [](){} );
 
-    EXPECT_FALSE(parentJob1->AddDependency(parentJob2));
-    EXPECT_TRUE(parentJob1->AddDependency(parentJob3));
+    EXPECT_FALSE(parentJob1.AddDependency(&parentJob2));
+    EXPECT_TRUE(parentJob1.AddDependency(&parentJob3));
 
-    auto parentJob4 = std::make_shared<neko::FuncDependenciesJob>(
-            std::initializer_list<std::weak_ptr<neko::Job>> {parentJob2},
+	neko::FuncDependenciesJob parentJob4 (
+            std::initializer_list<neko::Job*> {&parentJob2},
             [](){} );
-    EXPECT_FALSE(parentJob1->AddDependency(parentJob4));
+    EXPECT_FALSE(parentJob1.AddDependency(&parentJob4));
 
 }
 
@@ -89,15 +89,15 @@ TEST(JobSystem, WorkerQueue)
     EXPECT_TRUE(queue.IsRunning());
     EXPECT_TRUE(queue.IsEmpty());
 
-    auto job = std::make_shared<neko::FuncJob>([](){});
-    queue.AddJob(job);
+	neko::FuncJob job([](){});
+    queue.AddJob(&job);
     EXPECT_FALSE(queue.IsEmpty());
 
     auto topJob = queue.PopNextTask();
-    EXPECT_EQ(topJob.get(), job.get());
+    EXPECT_EQ(topJob, &job);
 
     auto noJob = queue.PopNextTask();
-    EXPECT_EQ(noJob.get(), nullptr);
+    EXPECT_EQ(noJob, nullptr);
 
     queue.End();
 }
@@ -120,7 +120,8 @@ TEST(JobSystem, Worker)
 
     int number = 0;
     constexpr int finalNumber = 3;
-    queue.AddJob(std::make_shared<neko::FuncJob>([&number, finalNumber](){number = finalNumber;}));
+	neko::FuncJob job ([&number, finalNumber](){number = finalNumber;});
+    queue.AddJob(&job);
 
     // WorkerQueue must be destroyed before the Worker
     queue.End();
@@ -151,7 +152,8 @@ TEST(JobSystem, JobSystemOneQueue)
 
     int number = 0;
     constexpr int finalNumber = 3;
-    jobSystem.AddJob(std::make_shared<neko::FuncJob>([&number, finalNumber](){number = finalNumber;}), queueIndex);
+	neko::FuncJob job([&number, finalNumber](){number = finalNumber;});
+    jobSystem.AddJob(&job, queueIndex);
 
     jobSystem.End();
 
@@ -169,21 +171,21 @@ TEST(JobSystem, JobSystemMainQueue)
     constexpr int firstNumber = 1;
     int number = firstNumber;
     constexpr int secondNumber = 3;
-    auto firstJob = std::make_shared<neko::FuncJob>([&number, &firstNumber, &secondNumber](){
+	neko::FuncJob firstJob([&number, &firstNumber, &secondNumber](){
         EXPECT_EQ(number, firstNumber);
         number = secondNumber;
     });
-    jobSystem.AddJob(firstJob, queueIndex);
+    jobSystem.AddJob(&firstJob, queueIndex);
 
     constexpr int finalNumber = 5;
-    auto mainJob = std::make_shared<neko::FuncDependentJob>(firstJob,
-                                                            [&number, &firstNumber, &secondNumber, &finalNumber]()
+	neko::FuncDependentJob mainJob(&firstJob,
+		[&number, &firstNumber, &secondNumber, &finalNumber]()
     {
         EXPECT_NE(number, firstNumber);
         EXPECT_EQ(number, secondNumber);
         number = finalNumber;
     });
-    jobSystem.AddJob(mainJob, neko::MAIN_QUEUE_INDEX);
+    jobSystem.AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
     jobSystem.ExecuteMainThread();
     jobSystem.End();
 
@@ -202,21 +204,21 @@ TEST(JobSystem, JobSystemDependenciesStart)
     int number1 = firstNumber;
     int number2 = firstNumber;
     constexpr int secondNumber = 3;
-    auto firstJob = std::make_shared<neko::FuncJob>([&number1, &secondNumber](){
+	neko::FuncJob firstJob([&number1, &secondNumber](){
 
         number1 = secondNumber;
     });
-    jobSystem.AddJob(firstJob, queueIndex);
+    jobSystem.AddJob(&firstJob, queueIndex);
     constexpr int thirdNumber = 4;
-    auto secondJob = std::make_shared<neko::FuncJob>([&number2, &thirdNumber](){
+	neko::FuncJob secondJob([&number2, &thirdNumber](){
 
         number2 = thirdNumber;
     });
-    jobSystem.AddJob(secondJob, queueIndex);
+    jobSystem.AddJob(&secondJob, queueIndex);
 
     constexpr int finalNumber = 5;
-    auto mainJob = std::make_shared<neko::FuncDependenciesJob>(
-            std::initializer_list<std::weak_ptr<neko::Job>>{firstJob, secondJob},
+	neko::FuncDependenciesJob mainJob(
+            {&firstJob, &secondJob},
             [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber, &finalNumber]()
     {
         EXPECT_NE(number1, firstNumber);
@@ -226,7 +228,7 @@ TEST(JobSystem, JobSystemDependenciesStart)
         number1 = finalNumber;
         number2 = finalNumber;
     });
-    jobSystem.AddJob(mainJob, neko::MAIN_QUEUE_INDEX);
+    jobSystem.AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
     jobSystem.ExecuteMainThread();
     jobSystem.End();
 
