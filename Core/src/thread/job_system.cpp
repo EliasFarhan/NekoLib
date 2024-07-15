@@ -225,7 +225,7 @@ void Worker::Run()
                     continue;
                 if (!newTask->ShouldStart())
                 {
-                    queue_->AddJob(std::move(newTask));
+                    queue_->AddJob(newTask);
                 }
                 else
                 {
@@ -256,6 +256,8 @@ static JobSystem* instance = nullptr;
 JobSystem::JobSystem()
 {
     instance = this;
+	queues_.reserve(10);
+	workers_.reserve(std::thread::hardware_concurrency());
 }
 
 int JobSystem::SetupNewQueue(int threadCount)
