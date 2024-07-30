@@ -12,6 +12,7 @@ void Job::Execute()
     hasStarted_.store(true, std::memory_order_release);
     ExecuteImpl();
     isDone_.store(true, std::memory_order_release);
+    promise_.set_value();
 }
 
 bool Job::HasStarted() const
@@ -31,6 +32,8 @@ bool Job::ShouldStart() const
 
 void Job::Reset()
 {
+    promise_ = std::promise<void>();
+    taskDoneFuture_ = promise_.get_future();
     hasStarted_.store(false, std::memory_order_release);
     isDone_.store(false, std::memory_order_release);
 }
@@ -40,6 +43,19 @@ bool Job::CheckDependency(const Job *ptr) const
     return false;
 }
 
+void Job::Join()
+{
+    if(!IsDone())
+    {
+        taskDoneFuture_.get();
+    }
+}
+
+Job::Job() : taskDoneFuture_(promise_.get_future())
+{
+
+}
+
 void FuncJob::ExecuteImpl()
 {
     func_();
@@ -47,10 +63,9 @@ void FuncJob::ExecuteImpl()
 
 bool FuncDependentJob::ShouldStart() const
 {
-    const auto dependencyJob = dependency_.lock();
-    if(dependencyJob != nullptr)
+    if(dependency_ != nullptr)
     {
-        return dependencyJob->HasStarted();
+        return dependency_->HasStarted();
     }
     return false;
 }
@@ -61,11 +76,20 @@ bool FuncDependentJob::CheckDependency(const Job *ptr) const
     {
         return true;
     }
-    auto dep = dependency_.lock();
+    auto dep = dependency_;
     if(dep != nullptr) {
         return dep->CheckDependency(ptr);
     }
     return false;
+}
+
+void FuncDependentJob::Execute()
+{
+    if(dependency_ != nullptr)
+    {
+		dependency_->Join();
+    }
+    Job::Execute();
 }
 
 bool FuncDependenciesJob::ShouldStart() const
@@ -73,8 +97,7 @@ bool FuncDependenciesJob::ShouldStart() const
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
     {
-        const auto dependencyJob = dependency.lock();
-        if (dependencyJob != nullptr && !dependencyJob->HasStarted())
+        if (dependency != nullptr && !dependency->HasStarted())
         {
             shouldStart = false;
             break;
@@ -83,10 +106,9 @@ bool FuncDependenciesJob::ShouldStart() const
     return shouldStart;
 }
 
-bool FuncDependenciesJob::AddDependency(const std::weak_ptr<Job>& dependency)
+bool FuncDependenciesJob::AddDependency(Job* dependency)
 {
-    auto newDependency = dependency.lock();
-    if(newDependency == nullptr || newDependency->CheckDependency(this))
+    if(dependency == nullptr || dependency->CheckDependency(this))
     {
         return false;
     }
@@ -100,14 +122,21 @@ bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
     {
         return true;
     }
-    for(auto& dependency: dependencies_)
+	return std::any_of(dependencies_.begin(), dependencies_.end(), [ptr](const auto* dep){
+		return dep->CheckDependency(ptr);
+	});
+}
+
+void FuncDependenciesJob::Execute()
+{
+    for(auto& dependency : dependencies_)
     {
-        if(dependency.lock()->CheckDependency(ptr))
+        if(dependency != nullptr)
         {
-            return true;
+			dependency->Join();
         }
     }
-    return false;
+    Job::Execute();
 }
 
 void WorkerQueue::Begin()
@@ -115,7 +144,7 @@ void WorkerQueue::Begin()
     isRunning_.store(true, std::memory_order_release);
 }
 
-void WorkerQueue::AddJob(const std::shared_ptr<Job>& newJob)
+void WorkerQueue::AddJob(Job* newJob)
 {
     std::scoped_lock lock(mutex_);
     jobsQueue_.push(newJob);
@@ -133,7 +162,7 @@ bool WorkerQueue::IsRunning() const
     return isRunning_.load(std::memory_order_acquire);
 }
 
-std::shared_ptr<Job> WorkerQueue::PopNextTask()
+Job* WorkerQueue::PopNextTask()
 {
     if (IsEmpty())
         return nullptr;
@@ -149,12 +178,14 @@ std::shared_ptr<Job> WorkerQueue::PopNextTask()
 void WorkerQueue::WaitForTask()
 {
     std::unique_lock lock(mutex_);
+    if(!isRunning_.load(std::memory_order_acquire))
+        return;
     conditionVariable_.wait(lock);
 }
 
 void WorkerQueue::End()
 {
-    isRunning_.store(false, std::memory_order::release);
+    isRunning_.store(false, std::memory_order_release);
     conditionVariable_.notify_all();
 }
 
@@ -181,7 +212,7 @@ void Worker::Run()
         {
             if (!queue_->IsRunning())
             {
-                break;
+                return;
             }
             queue_->WaitForTask();
         }
@@ -194,7 +225,7 @@ void Worker::Run()
                     continue;
                 if (!newTask->ShouldStart())
                 {
-                    queue_->AddJob(std::move(newTask));
+                    queue_->AddJob(newTask);
                 }
                 else
                 {
@@ -211,7 +242,7 @@ void Worker::Run()
             continue;
         if (!newTask->ShouldStart())
         {
-            queue_->AddJob(std::move(newTask));
+            queue_->AddJob(newTask);
         }
         else
         {
@@ -225,11 +256,13 @@ static JobSystem* instance = nullptr;
 JobSystem::JobSystem()
 {
     instance = this;
+	queues_.reserve(10);
+	workers_.reserve(std::thread::hardware_concurrency());
 }
 
 int JobSystem::SetupNewQueue(int threadCount)
 {
-    const int newQueueIndex = queues_.size();
+    const int newQueueIndex = (int)queues_.size();
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {
@@ -250,7 +283,7 @@ void JobSystem::Begin()
     }
 }
 
-void JobSystem::AddJob(const std::shared_ptr<Job>& newJob, int queueIndex)
+void JobSystem::AddJob(Job* newJob, int queueIndex)
 {
     newJob->Reset();
     if(queueIndex == MAIN_QUEUE_INDEX)
@@ -280,7 +313,7 @@ void JobSystem::ExecuteMainThread()
         auto newTask = mainThreadQueue_.PopNextTask();
         if (!newTask->ShouldStart())
         {
-            mainThreadQueue_.AddJob(std::move(newTask));
+            mainThreadQueue_.AddJob(newTask);
         }
         else
         {

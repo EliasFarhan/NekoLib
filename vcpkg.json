@@ -1,7 +1,9 @@
 {
   "name": "neko-lib",
   "version-string": "1.0",
-  "dependencies": [
-    "gtest"
-  ]
+  "features": {
+    "tests": { "description": "Tests", "dependencies": ["gtest"]},
+    "benchmark": { "description": "Benchmarks", "dependencies": ["benchmark"]},
+    "profile": { "description": "Profiling", "dependencies": ["tracy"] }
+  }
 }

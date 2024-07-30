@@ -5,7 +5,7 @@
 #include "memory/pool_allocator.h"
 #include "memory/proxy_allocator.h"
 
-#include <gtest/gtest.h>
+#include "gtest/gtest.h"
 
 #include <random>
 
@@ -26,7 +26,7 @@ TEST(CustomAllocator, Alignment)
 
 }
 
-TEST(Engine, TestLinearAllocator)
+TEST(CustomAllocator, TestLinearAllocator)
 {
     const size_t length = 100;
     void* data = calloc(length + 1, sizeof(int));
@@ -42,14 +42,12 @@ TEST(Engine, TestLinearAllocator)
         }
         *v = i;
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     allocator.Clear();
     std::free(data);
 
 }
 
-TEST(Engine, TestStackAllocator)
+TEST(CustomAllocator, TestStackAllocator)
 {
     const size_t length = 100;
     const size_t allocateNmb = 5;
@@ -67,14 +65,12 @@ TEST(Engine, TestStackAllocator)
             v[j] = j;
         }
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::for_each(ptr.rbegin(), ptr.rend(), [&allocator](int* p) { allocator.Deallocate(p); });
     free(data);
 
 }
 
-TEST(Engine, TestFreeListAllocator)
+TEST(CustomAllocator, TestFreeListAllocator)
 {
     const size_t length = 100;
     const size_t allocateNmb = 10;
@@ -91,8 +87,6 @@ TEST(Engine, TestFreeListAllocator)
             v[j] = j;
         }
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(ptr.begin(), ptr.end(), g);
@@ -101,7 +95,7 @@ TEST(Engine, TestFreeListAllocator)
 
 }
 
-TEST(Engine, TestPoolAllocator)
+TEST(CustomAllocator, TestPoolAllocator)
 {
     struct Prout
     {
@@ -120,8 +114,6 @@ TEST(Engine, TestPoolAllocator)
         v->id = i;
         v->radius = v->id / 3.0f;
     }
-    std::cout << "Used Memory: " << allocator.GetUsedMemory() << "B for total size: " << allocator.GetSize() << "B"
-              << std::endl;
     std::random_device rd;
     std::mt19937 g(rd());
     std::shuffle(ptr.begin(), ptr.end(), g);
