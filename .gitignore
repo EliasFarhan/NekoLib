@@ -1,0 +1,3 @@
+[bB]uild/
+**/.DS_Store
+cmake-build-*/
