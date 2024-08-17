@@ -76,7 +76,7 @@ namespace neko
         {
             if constexpr (std::is_destructible_v<T>)
             {
-                for(int i = 0; i < size_; i++)
+                for(std::size_t i = 0; i < size_; i++)
                 {
                     underlyingContainer_[i].~T();
                 }
@@ -144,7 +144,7 @@ namespace neko
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            const auto index = std::distance(cbegin(), pos);
+            const std::size_t index = std::distance(cbegin(), pos);
             for(auto i = size_; i > index; i--)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i-1]);
@@ -163,7 +163,7 @@ namespace neko
 
         constexpr auto erase(typename  std::array<T, Capacity>::const_iterator pos )
         {
-            const auto index = std::distance(cbegin(), pos);
+            const std::size_t index = std::distance(cbegin(), pos);
             for(auto i = index; i < size_-1; i++)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i+1]);
@@ -529,6 +529,7 @@ namespace neko
                 std::terminate();
             }
         }
+		/*
         auto insert(Iterator pos, const T& value )
         {
         }
@@ -539,7 +540,7 @@ namespace neko
         auto erase(Iterator pos )
         {
         }
-
+		*/
         constexpr auto capacity() const
         {
             if(underlyingContainer_.index() == 0)

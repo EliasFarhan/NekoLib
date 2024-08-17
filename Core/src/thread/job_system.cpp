@@ -38,7 +38,7 @@ void Job::Reset()
     isDone_.store(false, std::memory_order_release);
 }
 
-bool Job::CheckDependency(const Job *ptr) const
+bool Job::CheckDependency([[maybe_unused]]const Job *ptr) const
 {
     return false;
 }

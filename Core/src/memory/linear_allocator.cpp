@@ -18,7 +18,7 @@ void* LinearAllocator::Allocate(std::size_t allocatedSize, std::size_t alignment
     return alignedAddress;
 }
 
-void LinearAllocator::Deallocate(void* ptr)
+void LinearAllocator::Deallocate([[maybe_unused]]void* ptr)
 {
 }
 

@@ -57,14 +57,14 @@ class FuncDependentJob : public FuncJob
 {
 public:
     FuncDependentJob(Job* dependency, const std::function<void(void)>& func) :
-            dependency_(dependency),
-            FuncJob(func)
+            FuncJob(func),
+            dependency_(dependency)
     {
 
     }
     void Execute() override;
-    bool ShouldStart() const override;
-    bool CheckDependency(const Job *ptr) const override;
+    [[nodiscard]] bool ShouldStart() const override;
+	[[nodiscard]] bool CheckDependency(const Job *ptr) const override;
 private:
     Job* dependency_{};
 };
@@ -72,7 +72,7 @@ private:
 class FuncDependenciesJob: public FuncJob
 {
 public:
-    FuncDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
+    explicit FuncDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
     {}
     FuncDependenciesJob(std::initializer_list<Job*> dependencies, const std::function<void(void)>& func):
             FuncJob(func), dependencies_(dependencies)

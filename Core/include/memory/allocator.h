@@ -91,7 +91,7 @@ T* StandardAllocator<T>::allocate(std::size_t n)
 }
 
 template <typename T>
-void StandardAllocator<T>::deallocate(T* ptr, std::size_t n)
+void StandardAllocator<T>::deallocate(T* ptr, [[maybe_unused]] std::size_t n)
 {
     allocator_.Deallocate(ptr);
 }

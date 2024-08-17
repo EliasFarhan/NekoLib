@@ -131,7 +131,7 @@ TEST(FixedVector, PushOverCapacityDeathTest)
 {
     neko::FixedVector<int, 10> v;
 
-    for(int i = 0; i < v.capacity(); i++)
+    for(std::size_t i = 0; i < v.capacity(); i++)
     {
         v.push_back(i);
     }

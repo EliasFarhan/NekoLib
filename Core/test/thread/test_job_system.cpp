@@ -120,7 +120,7 @@ TEST(JobSystem, Worker)
 
     int number = 0;
     constexpr int finalNumber = 3;
-	neko::FuncJob job ([&number, finalNumber](){number = finalNumber;});
+	neko::FuncJob job ([&number](){number = finalNumber;});
     queue.AddJob(&job);
 
     // WorkerQueue must be destroyed before the Worker
@@ -133,7 +133,7 @@ TEST(JobSystem, JobSystemSeveralQueuesEmpty)
 {
     neko::JobSystem jobSystem;
 
-    int queueIndex = jobSystem.SetupNewQueue(5);
+	[[maybe_unused]] int queueIndex = jobSystem.SetupNewQueue(5);
 
     jobSystem.Begin();
 
@@ -152,7 +152,7 @@ TEST(JobSystem, JobSystemOneQueue)
 
     int number = 0;
     constexpr int finalNumber = 3;
-	neko::FuncJob job([&number, finalNumber](){number = finalNumber;});
+	neko::FuncJob job([&number](){number = finalNumber;});
     jobSystem.AddJob(&job, queueIndex);
 
     jobSystem.End();
@@ -171,7 +171,7 @@ TEST(JobSystem, JobSystemMainQueue)
     constexpr int firstNumber = 1;
     int number = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number, &firstNumber, &secondNumber](){
+	neko::FuncJob firstJob([&number, &firstNumber](){
         EXPECT_EQ(number, firstNumber);
         number = secondNumber;
     });
@@ -179,7 +179,7 @@ TEST(JobSystem, JobSystemMainQueue)
 
     constexpr int finalNumber = 5;
 	neko::FuncDependentJob mainJob(&firstJob,
-		[&number, &firstNumber, &secondNumber, &finalNumber]()
+		[&number, &firstNumber, &secondNumber]()
     {
         EXPECT_NE(number, firstNumber);
         EXPECT_EQ(number, secondNumber);
@@ -204,13 +204,13 @@ TEST(JobSystem, JobSystemDependenciesStart)
     int number1 = firstNumber;
     int number2 = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number1, &secondNumber](){
+	neko::FuncJob firstJob([&number1](){
 
         number1 = secondNumber;
     });
     jobSystem.AddJob(&firstJob, queueIndex);
     constexpr int thirdNumber = 4;
-	neko::FuncJob secondJob([&number2, &thirdNumber](){
+	neko::FuncJob secondJob([&number2](){
 
         number2 = thirdNumber;
     });
@@ -219,7 +219,7 @@ TEST(JobSystem, JobSystemDependenciesStart)
     constexpr int finalNumber = 5;
 	neko::FuncDependenciesJob mainJob(
             {&firstJob, &secondJob},
-            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber, &finalNumber]()
+            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber]()
     {
         EXPECT_NE(number1, firstNumber);
         EXPECT_EQ(number1, secondNumber);
