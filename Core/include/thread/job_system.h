@@ -46,11 +46,12 @@ private:
 class FuncJob : public Job
 {
 public:
-    FuncJob(const std::function<void(void)>& func): Job(), func_(func){}
+	FuncJob() = default;
+    explicit FuncJob(const std::function<void(void)>& func): Job(), func_(func){}
 protected:
     void ExecuteImpl() override;
 private:
-    std::function<void(void)> func_;
+    std::function<void(void)> func_{};
 };
 
 class FuncDependentJob : public FuncJob
