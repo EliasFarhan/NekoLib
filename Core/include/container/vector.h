@@ -128,7 +128,7 @@ namespace neko
                 std::terminate();
             }
             const auto index = std::distance(cbegin(), pos);
-            for(auto i = size_; i > index; i--)
+            for(auto i = (std::ptrdiff_t)size_; i > index; i--)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i-1]);
             }
@@ -144,8 +144,8 @@ namespace neko
                 // Over-capacity leads to a crash
                 std::terminate();
             }
-            const std::size_t index = std::distance(cbegin(), pos);
-            for(auto i = size_; i > index; i--)
+            const auto index = std::distance(cbegin(), pos);
+            for(auto i = (std::ptrdiff_t)size_; i > index; i--)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i-1]);
             }
