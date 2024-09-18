@@ -176,6 +176,7 @@ namespace neko
         {
             return Capacity;
         }
+
         constexpr auto size() const
         {
             return size_;
@@ -193,6 +194,8 @@ namespace neko
         {
             return underlyingContainer_.data();
         }
+		[[nodiscard]] constexpr bool is_full() const {return size_ == Capacity;}
+		[[nodiscard]] constexpr bool is_empty() const { return size_ == 0;}
 
     private:
         std::array<T, Capacity> underlyingContainer_{};
