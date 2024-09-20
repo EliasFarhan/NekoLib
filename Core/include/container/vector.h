@@ -40,6 +40,16 @@ namespace neko
             return underlyingContainer_.begin()+size_;
         }
 
+		constexpr auto begin() const
+		{
+			return underlyingContainer_.begin();
+		}
+
+		constexpr auto end() const
+		{
+			return underlyingContainer_.begin()+size_;
+		}
+
         constexpr auto cbegin() const
         {
             return underlyingContainer_.cbegin();
@@ -197,6 +207,14 @@ namespace neko
 		[[nodiscard]] constexpr bool is_full() const {return size_ == Capacity;}
 		[[nodiscard]] constexpr bool is_empty() const { return size_ == 0;}
 
+		bool operator==(const SmallVector& other) const
+		{
+			return size_ == other.size_ && underlyingContainer_ == other.underlyingContainer_;
+		}
+		bool operator!=(const SmallVector& other) const
+		{
+			return !operator==(other);
+		}
     private:
         std::array<T, Capacity> underlyingContainer_{};
         std::size_t size_ = 0;
