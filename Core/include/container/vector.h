@@ -138,7 +138,7 @@ namespace neko
                 std::terminate();
             }
             const auto index = std::distance(cbegin(), pos);
-            for(auto i = (std::ptrdiff_t)size_; i > index; i--)
+            for(auto i = static_cast<std::ptrdiff_t>(size_); i > index; i--)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i-1]);
             }
@@ -155,7 +155,7 @@ namespace neko
                 std::terminate();
             }
             const auto index = std::distance(cbegin(), pos);
-            for(auto i = (std::ptrdiff_t)size_; i > index; i--)
+            for(auto i = static_cast<std::ptrdiff_t>(size_); i > index; i--)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i-1]);
             }
@@ -173,7 +173,7 @@ namespace neko
 
         constexpr auto erase(typename  std::array<T, Capacity>::const_iterator pos )
         {
-            const std::size_t index = std::distance(cbegin(), pos);
+            const auto index = static_cast<std::size_t>(std::distance(cbegin(), pos));
             for(auto i = index; i < size_-1; i++)
             {
                 underlyingContainer_[i] = std::move(underlyingContainer_[i+1]);
