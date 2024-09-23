@@ -46,12 +46,13 @@ void Job::Join()
     {
     }
 }
-
+/*
 Job::Job(const Job& job)
 {
 	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
 	isDone_ = job.isDone_.load(std::memory_order_acquire);
 }
+
 
 Job::Job(Job&& job) noexcept
 {
@@ -72,7 +73,7 @@ Job& Job::operator=(Job&& job) noexcept
 	isDone_ = job.isDone_.load(std::memory_order_acquire);
 	return *this;
 }
-
+*/
 
 void FuncJob::ExecuteImpl()
 {
@@ -198,7 +199,10 @@ void WorkerQueue::WaitForTask()
     std::unique_lock lock(mutex_);
     if(!isRunning_.load(std::memory_order_acquire))
         return;
-    conditionVariable_.wait(lock);
+	if(jobsQueue_.empty())
+	{
+		conditionVariable_.wait(lock);
+	}
 }
 
 void WorkerQueue::End()

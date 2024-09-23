@@ -19,10 +19,6 @@ class Job
 public:
 	Job() = default;
     virtual ~Job() = default;
-	Job(const Job& job);
-	Job(Job&& job) noexcept;
-	Job& operator=(const Job& job);
-	Job& operator=(Job&& job) noexcept;
     virtual void Execute();
     [[nodiscard]] bool HasStarted() const;
     [[nodiscard]] bool IsDone() const;
@@ -49,6 +45,7 @@ class FuncJob : public Job
 public:
     explicit FuncJob() = default;
     explicit FuncJob(const std::function<void(void)>& func): func_(func){}
+
 protected:
     void ExecuteImpl() override;
 private:
