@@ -12,7 +12,6 @@ void Job::Execute()
     hasStarted_.store(true, std::memory_order_release);
     ExecuteImpl();
     isDone_.store(true, std::memory_order_release);
-    promise_.set_value();
 }
 
 bool Job::HasStarted() const
@@ -32,8 +31,6 @@ bool Job::ShouldStart() const
 
 void Job::Reset()
 {
-    promise_ = std::promise<void>();
-    taskDoneFuture_ = promise_.get_future();
     hasStarted_.store(false, std::memory_order_release);
     isDone_.store(false, std::memory_order_release);
 }
@@ -45,16 +42,37 @@ bool Job::CheckDependency([[maybe_unused]]const Job *ptr) const
 
 void Job::Join()
 {
-    if(!IsDone())
+    while(!IsDone())
     {
-        taskDoneFuture_.get();
     }
 }
 
-Job::Job() : taskDoneFuture_(promise_.get_future())
+Job::Job(const Job& job)
 {
-
+	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
+	isDone_ = job.isDone_.load(std::memory_order_acquire);
 }
+
+Job::Job(Job&& job) noexcept
+{
+	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
+	isDone_ = job.isDone_.load(std::memory_order_acquire);
+}
+
+Job& Job::operator=(const Job& job)
+{
+	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
+	isDone_ = job.isDone_.load(std::memory_order_acquire);
+	return *this;
+}
+
+Job& Job::operator=(Job&& job) noexcept
+{
+	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
+	isDone_ = job.isDone_.load(std::memory_order_acquire);
+	return *this;
+}
+
 
 void FuncJob::ExecuteImpl()
 {
@@ -262,7 +280,7 @@ JobSystem::JobSystem()
 
 int JobSystem::SetupNewQueue(int threadCount)
 {
-    const int newQueueIndex = (int)queues_.size();
+    const int newQueueIndex = static_cast<int>(queues_.size());
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {

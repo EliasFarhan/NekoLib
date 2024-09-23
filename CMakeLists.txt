@@ -25,14 +25,6 @@ if(ENABLE_PROFILING)
 endif(ENABLE_PROFILING)
 project(NekoLib)
 
-if (MSVC)
-    # warning level 4 and all warnings as errors
-    add_compile_options(/W4 /w14640)
-    add_compile_definitions(_USE_MATH_DEFINES=1)
-else()
-    # lots of warnings and all warnings as errors
-    add_compile_options(-Wall -Wextra -Wshadow -Wnon-virtual-dtor)
-endif()
 
 if(NEKO_TEST)
     enable_testing()

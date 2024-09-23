@@ -9,7 +9,7 @@ namespace neko
 class FreeListAllocator : public CustomAllocator
 {
 public:
-    FreeListAllocator(std::size_t size, void* start) : CustomAllocator(start, size), freeBlocks_((FreeBlock*)start)
+    FreeListAllocator(std::size_t size, void* start) : CustomAllocator(start, size), freeBlocks_(static_cast<FreeBlock*>(start))
     {
         if(size <= sizeof(FreeBlock))
         {

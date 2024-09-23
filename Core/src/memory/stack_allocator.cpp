@@ -49,12 +49,12 @@ void StackAllocator::Deallocate(void* p)
     } 
 #endif
     //Access the AllocationHeader in the bytes before p
-    auto* header = (AllocationHeader*)((std::uint64_t) p - sizeof(AllocationHeader));
+    auto* header = reinterpret_cast<AllocationHeader*>(reinterpret_cast<std::uint64_t>(p) - sizeof(AllocationHeader));
 #if defined(NEKO_ASSERT)
     prevPos_ = header->prevPos;
 #endif
-    usedMemory_ -= (std::uint64_t) currentPos_ - (std::uint64_t) p + header->adjustment;
-    currentPos_ = (void*)((std::uint64_t) p - header->adjustment);
+    usedMemory_ -= reinterpret_cast<std::uint64_t>(currentPos_) - reinterpret_cast<std::uint64_t>(p) + header->adjustment;
+    currentPos_ = reinterpret_cast<void*>(reinterpret_cast<std::uint64_t>(p) - header->adjustment);
     numAllocations_--;
 }
 }

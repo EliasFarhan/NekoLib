@@ -17,12 +17,16 @@ namespace neko
 class Job
 {
 public:
-    Job();
+	Job() = default;
     virtual ~Job() = default;
+	Job(const Job& job);
+	Job(Job&& job) noexcept;
+	Job& operator=(const Job& job);
+	Job& operator=(Job&& job) noexcept;
     virtual void Execute();
-    bool HasStarted() const;
-    bool IsDone() const;
-    virtual bool ShouldStart() const;
+    [[nodiscard]] bool HasStarted() const;
+    [[nodiscard]] bool IsDone() const;
+    [[nodiscard]] virtual bool ShouldStart() const;
     void Reset();
     void Join();
 
@@ -35,10 +39,7 @@ public:
 
 protected:
     virtual void ExecuteImpl() = 0;
-
 private:
-    std::promise<void> promise_;
-    std::shared_future<void> taskDoneFuture_;
     std::atomic<bool> hasStarted_{ false };
     std::atomic<bool> isDone_{ false };
 };
@@ -46,11 +47,12 @@ private:
 class FuncJob : public Job
 {
 public:
-    FuncJob(const std::function<void(void)>& func): Job(), func_(func){}
+    explicit FuncJob() = default;
+    explicit FuncJob(const std::function<void(void)>& func): func_(func){}
 protected:
     void ExecuteImpl() override;
 private:
-    std::function<void(void)> func_;
+    std::function<void(void)> func_{};
 };
 
 class FuncDependentJob : public FuncJob

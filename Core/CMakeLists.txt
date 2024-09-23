@@ -5,6 +5,15 @@ file(GLOB_RECURSE SRC_FILES src/*.cpp)
 add_library(NekoCore ${INCLUDE_FILES} ${SRC_FILES})
 target_include_directories(NekoCore PUBLIC include/)
 
+if (MSVC)
+    # warning level 4 and all warnings as errors
+    target_compile_options(NekoCore PRIVATE /W4 /w14640 /permissive-)
+    target_compile_definitions(NekoCore PRIVATE _USE_MATH_DEFINES=1)
+else()
+    # lots of warnings and all warnings as errors
+    target_compile_options(NekoCore PRIVATE -Wall -Wextra -Wshadow -Wnon-virtual-dtor -Wold-style-cast -Wunused -Werror)
+endif()
+
 if(NEKO_TEST)
     file(GLOB_RECURSE TEST_FILES test/*.cpp)
     add_executable(NekoCoreTest ${TEST_FILES})
