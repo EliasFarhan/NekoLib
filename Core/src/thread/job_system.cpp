@@ -46,34 +46,6 @@ void Job::Join()
     {
     }
 }
-/*
-Job::Job(const Job& job)
-{
-	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
-	isDone_ = job.isDone_.load(std::memory_order_acquire);
-}
-
-
-Job::Job(Job&& job) noexcept
-{
-	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
-	isDone_ = job.isDone_.load(std::memory_order_acquire);
-}
-
-Job& Job::operator=(const Job& job)
-{
-	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
-	isDone_ = job.isDone_.load(std::memory_order_acquire);
-	return *this;
-}
-
-Job& Job::operator=(Job&& job) noexcept
-{
-	hasStarted_ = job.hasStarted_.load(std::memory_order_acquire);
-	isDone_ = job.isDone_.load(std::memory_order_acquire);
-	return *this;
-}
-*/
 
 void FuncJob::ExecuteImpl()
 {
