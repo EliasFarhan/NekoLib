@@ -36,6 +36,6 @@ if(NEKO_BENCHMARK)
 endif (NEKO_BENCHMARK)
 
 if(ENABLE_PROFILING)
-    find_package(Tracy CONFIG REQUIRED)
+    find_package(Tracy CONFIG)
 endif(ENABLE_PROFILING)
 add_subdirectory(Core/)

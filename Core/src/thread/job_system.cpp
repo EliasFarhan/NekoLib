@@ -309,6 +309,9 @@ void JobSystem::Begin()
 
 void JobSystem::AddJob(Job* newJob, int queueIndex)
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     newJob->Reset();
     if(queueIndex == MAIN_QUEUE_INDEX)
     {
