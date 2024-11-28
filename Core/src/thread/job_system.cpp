@@ -1,11 +1,10 @@
-//
-// Created by unite on 22.05.2024.
-//
-
-#include <thread/job_system.h>
+#include "thread/job_system.h"
+#include <concurrentqueue.h>
 
 namespace neko
 {
+
+
 
 void Job::Execute()
 {
@@ -130,60 +129,39 @@ void FuncDependenciesJob::Execute()
     Job::Execute();
 }
 
-void WorkerQueue::Begin()
-{
-    isRunning_.store(true, std::memory_order_release);
-}
 
-void WorkerQueue::AddJob(Job* newJob)
-{
-    std::scoped_lock lock(mutex_);
-    jobsQueue_.push(newJob);
-    conditionVariable_.notify_one();
-}
 
-bool WorkerQueue::IsEmpty() const
+class WorkerQueue
 {
-    std::shared_lock lock(mutex_);
-    return jobsQueue_.empty();
-}
+public:
+    WorkerQueue() = default;
+    WorkerQueue(const WorkerQueue&) = delete;
+    WorkerQueue& operator= (const WorkerQueue&) = delete;
+    WorkerQueue(WorkerQueue&&) noexcept{}
+    WorkerQueue& operator= (WorkerQueue&&) noexcept{ return *this; }
 
-bool WorkerQueue::IsRunning() const
+    void AddJob(Job* newJob);
+    bool IsEmpty() const;
+    Job* PopNextTask();
+    void End();
+private:
+    moodycamel::ConcurrentQueue<Job*> jobsQueue_;
+};
+
+
+
+
+class Worker
 {
-    return isRunning_.load(std::memory_order_acquire);
-}
-
-Job* WorkerQueue::PopNextTask()
-{
-    if (IsEmpty())
-        return nullptr;
-
-    std::scoped_lock lock(mutex_);
-    if (jobsQueue_.empty())
-        return nullptr;
-    auto newTask = jobsQueue_.front();
-    jobsQueue_.pop();
-    return newTask;
-}
-
-void WorkerQueue::WaitForTask()
-{
-    std::unique_lock lock(mutex_);
-    if(!isRunning_.load(std::memory_order_acquire))
-    {
-        return;
-    }
-	if(jobsQueue_.empty())
-	{
-		conditionVariable_.wait(lock);
-	}
-}
-
-void WorkerQueue::End()
-{
-    isRunning_.store(false, std::memory_order_release);
-    conditionVariable_.notify_all();
-}
+public:
+    Worker(std::size_t queueIndex) : queueIndex_(queueIndex){}
+    void Begin();
+    void End();
+private:
+    void Run() const;
+    std::thread thread_;
+    std::size_t queueIndex_ = std::numeric_limits<size_t>::max();
+};
 
 void Worker::Begin()
 {
@@ -198,88 +176,38 @@ void Worker::End()
     }
 }
 
-void Worker::Run()
+
+
+namespace JobSystem
 {
-    if(queue_ == nullptr)
-        return;
-    while(queue_->IsRunning())
-    {
-        if (queue_->IsEmpty())
-        {
-            if (!queue_->IsRunning())
-            {
-                return;
-            }
-            queue_->WaitForTask();
-        }
-        else
-        {
-            while (!queue_->IsEmpty())
-            {
-                auto newTask = queue_->PopNextTask();
-                if (newTask == nullptr)
-                    continue;
-                if (!newTask->ShouldStart())
-                {
-                    queue_->AddJob(newTask);
-                }
-                else
-                {
-                    newTask->Execute();
-                }
-            }
-        }
-    }
-    // Even when not running anymore we still need to finish the remaining jobs
-    while (!queue_->IsEmpty())
-    {
-        auto newTask = queue_->PopNextTask();
-        if (newTask == nullptr)
-            continue;
-        if (!newTask->ShouldStart())
-        {
-            queue_->AddJob(newTask);
-        }
-        else
-        {
-            newTask->Execute();
-        }
-    }
+namespace
+{
+WorkerQueue mainThreadQueue_{};
+std::vector<WorkerQueue> queues_{};
+std::vector<Worker> workers_{};
+std::atomic<bool> isRunning_{ false };
 }
 
-static JobSystem* instance = nullptr;
-
-JobSystem::JobSystem()
-{
-    instance = this;
-	queues_.reserve(10);
-	workers_.reserve(std::thread::hardware_concurrency());
-}
-
-int JobSystem::SetupNewQueue(int threadCount)
+int SetupNewQueue(int threadCount)
 {
     const int newQueueIndex = static_cast<int>(queues_.size());
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {
-        workers_.emplace_back(&queues_.back());
+        workers_.emplace_back(newQueueIndex);
     }
     return newQueueIndex;
 }
 
-void JobSystem::Begin()
+void Begin()
 {
-    for(auto& queue: queues_)
-    {
-        queue.Begin();
-    }
     for(auto& worker : workers_)
     {
         worker.Begin();
     }
 }
 
-void JobSystem::AddJob(Job* newJob, int queueIndex)
+void AddJob(Job* newJob, int queueIndex)
 {
 #ifdef TRACY_ENABLE
     ZoneScoped;
@@ -293,8 +221,10 @@ void JobSystem::AddJob(Job* newJob, int queueIndex)
     queues_[queueIndex].AddJob(newJob);
 }
 
-void JobSystem::End()
+void End()
 {
+
+    isRunning_.store(false, std::memory_order_release);
     for(auto& queue: queues_)
     {
         queue.End();
@@ -303,9 +233,11 @@ void JobSystem::End()
     {
         worker.End();
     }
+    queues_.clear();
+    workers_.clear();
 }
 
-void JobSystem::ExecuteMainThread()
+void ExecuteMainThread()
 {
     while (!mainThreadQueue_.IsEmpty())
     {
@@ -321,20 +253,81 @@ void JobSystem::ExecuteMainThread()
     }
 }
 
-JobSystem::~JobSystem()
+
+}
+void Worker::Run() const
 {
-    instance = nullptr;
+    auto& queue = JobSystem::queues_[queueIndex_];
+    while(JobSystem::isRunning_.load(std::memory_order_acquire))
+    {
+        if (queue.IsEmpty())
+        {
+            if (!JobSystem::isRunning_.load(std::memory_order_acquire))
+            {
+                return;
+            }
+        }
+        else
+        {
+            while (!queue.IsEmpty())
+            {
+                auto newTask = queue.PopNextTask();
+                if (newTask == nullptr)
+                    continue;
+                if (!newTask->ShouldStart())
+                {
+                    queue.AddJob(newTask);
+                }
+                else
+                {
+                    newTask->Execute();
+                }
+            }
+        }
+    }
+    // Even when not running anymore we still need to finish the remaining jobs
+    while (!queue.IsEmpty())
+    {
+        auto newTask = queue.PopNextTask();
+        if (newTask == nullptr)
+            continue;
+        if (!newTask->ShouldStart())
+        {
+            queue.AddJob(newTask);
+        }
+        else
+        {
+            newTask->Execute();
+        }
+    }
 }
 
-JobSystem* GetJobSystem()
+
+void WorkerQueue::AddJob(Job* newJob)
 {
-    if(instance == nullptr)
-    {
-        // Instance should not be nullptr
-        // It means the JobSystem was not instanced somewhere
-        // Or that it was destroyed (did you check the scope)
-        std::terminate();
+    jobsQueue_.enqueue(newJob);
+}
+
+bool WorkerQueue::IsEmpty() const
+{
+    return jobsQueue_.size_approx() == 0;
+}
+
+
+Job* WorkerQueue::PopNextTask()
+{
+    if (IsEmpty())
+        return nullptr;
+
+    Job* newTask = nullptr;
+    jobsQueue_.try_dequeue(newTask);
+    return newTask;
+}
+
+void WorkerQueue::End()
+{
+    while (!IsEmpty()) {
+
     }
-    return instance;
 }
 }

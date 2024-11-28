@@ -3,6 +3,7 @@ file(GLOB_RECURSE INCLUDE_FILES include/*.h)
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 
 add_library(NekoCore ${INCLUDE_FILES} ${SRC_FILES})
+target_link_libraries(NekoCore PUBLIC concurrentqueue)
 target_include_directories(NekoCore PUBLIC include/)
 
 if (MSVC)

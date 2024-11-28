@@ -5,6 +5,8 @@
 #include "container/span.h"
 #include <gtest/gtest.h>
 
+#include <array>
+
 
 
 TEST(Span, ConstructFromArray)

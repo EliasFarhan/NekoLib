@@ -81,145 +81,96 @@ TEST(JobSystem, CyclicDependenciesJob)
 
 }
 
-TEST(JobSystem, WorkerQueue)
-{
-    neko::WorkerQueue queue;
-
-    queue.Begin();
-    EXPECT_TRUE(queue.IsRunning());
-    EXPECT_TRUE(queue.IsEmpty());
-
-	neko::FuncJob job([](){});
-    queue.AddJob(&job);
-    EXPECT_FALSE(queue.IsEmpty());
-
-    auto topJob = queue.PopNextTask();
-    EXPECT_EQ(topJob, &job);
-
-    auto noJob = queue.PopNextTask();
-    EXPECT_EQ(noJob, nullptr);
-
-    queue.End();
-}
-
-TEST(JobSystem, EmptyWorker)
-{
-    neko::Worker worker(nullptr);
-    worker.Begin();
-
-    worker.End();
-}
-
-TEST(JobSystem, Worker)
-{
-    neko::WorkerQueue queue;
-    queue.Begin();
-
-    neko::Worker worker(&queue);
-    worker.Begin();
-
-    int number = 0;
-    constexpr int finalNumber = 3;
-	neko::FuncJob job ([&number](){number = finalNumber;});
-    queue.AddJob(&job);
-
-    // WorkerQueue must be destroyed before the Worker
-    queue.End();
-    worker.End();
-    EXPECT_EQ(number, finalNumber);
-}
-
 TEST(JobSystem, JobSystemSeveralQueuesEmpty)
 {
-    neko::JobSystem jobSystem;
 
-	[[maybe_unused]] int queueIndex = jobSystem.SetupNewQueue(5);
+	[[maybe_unused]] int queueIndex = neko::JobSystem::SetupNewQueue(5);
 
-    jobSystem.Begin();
+    neko::JobSystem::Begin();
 
 
-    jobSystem.End();
+    neko::JobSystem::End();
 
 }
 
 TEST(JobSystem, JobSystemOneQueue)
 {
-    neko::JobSystem jobSystem;
 
-    int queueIndex = jobSystem.SetupNewQueue(1);
+    int queueIndex = neko::JobSystem::SetupNewQueue(1);
     
-    jobSystem.Begin();
+    neko::JobSystem::Begin();
 
     int number = 0;
     constexpr int finalNumber = 3;
-	neko::FuncJob job([&number](){number = finalNumber;});
-    jobSystem.AddJob(&job, queueIndex);
+	neko::FuncJob job([&number, finalNumber]
+	{
+	    number = finalNumber;
+	});
+    neko::JobSystem::AddJob(&job, queueIndex);
 
-    jobSystem.End();
+    neko::JobSystem::End();
 
     EXPECT_EQ(number, finalNumber);
 }
 
 TEST(JobSystem, JobSystemMainQueue)
 {
-    neko::JobSystem jobSystem;
 
-    int queueIndex = jobSystem.SetupNewQueue(1);
+    int queueIndex = neko::JobSystem::SetupNewQueue(1);
     
-    jobSystem.Begin();
+    neko::JobSystem::Begin();
 
     constexpr int firstNumber = 1;
     int number = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number, &firstNumber](){
+	neko::FuncJob firstJob([&number, &firstNumber, secondNumber](){
         EXPECT_EQ(number, firstNumber);
         number = secondNumber;
     });
-    jobSystem.AddJob(&firstJob, queueIndex);
+    neko::JobSystem::AddJob(&firstJob, queueIndex);
 
     constexpr int finalNumber = 5;
 	neko::FuncDependentJob mainJob(&firstJob,
-		[&number, &firstNumber, &secondNumber]()
+		[&number, &firstNumber, &secondNumber, finalNumber]()
     {
         EXPECT_NE(number, firstNumber);
         EXPECT_EQ(number, secondNumber);
         number = finalNumber;
     });
-    jobSystem.AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
-    jobSystem.ExecuteMainThread();
-    jobSystem.End();
+    neko::JobSystem::AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
+    neko::JobSystem::ExecuteMainThread();
+    neko::JobSystem::End();
 
     EXPECT_EQ(number, finalNumber);
 }
 
 TEST(JobSystem, JobSystemDependenciesStart)
 {
-    neko::JobSystem jobSystem;
 
-    int queueIndex = jobSystem.SetupNewQueue(1);
+    int queueIndex = neko::JobSystem::SetupNewQueue(1);
 
-    jobSystem.Begin();
+    neko::JobSystem::Begin();
 
     constexpr int firstNumber = 1;
     int number1 = firstNumber;
     int number2 = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number1](){
+	neko::FuncJob firstJob([&number1, secondNumber](){
 
         number1 = secondNumber;
     });
-    jobSystem.AddJob(&firstJob, queueIndex);
+    neko::JobSystem::AddJob(&firstJob, queueIndex);
     constexpr int thirdNumber = 4;
-	neko::FuncJob secondJob([&number2](){
+	neko::FuncJob secondJob([&number2, thirdNumber](){
 
         number2 = thirdNumber;
     });
-    jobSystem.AddJob(&secondJob, queueIndex);
+    neko::JobSystem::AddJob(&secondJob, queueIndex);
 
     constexpr int finalNumber = 5;
 	neko::FuncDependenciesJob mainJob(
             {&firstJob, &secondJob},
-            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber]()
+            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber, finalNumber]()
     {
         EXPECT_NE(number1, firstNumber);
         EXPECT_EQ(number1, secondNumber);
@@ -228,9 +179,9 @@ TEST(JobSystem, JobSystemDependenciesStart)
         number1 = finalNumber;
         number2 = finalNumber;
     });
-    jobSystem.AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
-    jobSystem.ExecuteMainThread();
-    jobSystem.End();
+    neko::JobSystem::AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
+    neko::JobSystem::ExecuteMainThread();
+    neko::JobSystem::End();
 
     EXPECT_EQ(number1, finalNumber);
     EXPECT_EQ(number2, finalNumber);

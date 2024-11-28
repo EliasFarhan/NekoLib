@@ -47,18 +47,17 @@ int TestMultithreadedWallet(int totalThread)
 {
 
     Wallet walletObject;
-    neko::JobSystem jobSystem;
-    auto queueIndex = jobSystem.SetupNewQueue(totalThread);
-    jobSystem.Begin();
+    auto queueIndex = neko::JobSystem::SetupNewQueue(totalThread);
+    neko::JobSystem::Begin();
 	std::vector<std::shared_ptr<neko::FuncJob>> jobs(totalThread);
     for (int i = 0; i < totalThread; ++i)
     {
 		jobs.push_back(std::make_shared<neko::FuncJob>([&walletObject](){
 			walletObject.AddMoney(total);
 		}));
-        jobSystem.AddJob(jobs.back().get(), queueIndex);
+        neko::JobSystem::AddJob(jobs.back().get(), queueIndex);
     }
-    jobSystem.End();
+    neko::JobSystem::End();
     return walletObject.GetMoney();
 }
 

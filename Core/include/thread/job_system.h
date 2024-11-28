@@ -5,10 +5,6 @@
 #include <atomic>
 #include <functional>
 #include <memory>
-#include <shared_mutex>
-#include <queue>
-#include <condition_variable>
-#include <thread>
 #include <future>
 
 namespace neko
@@ -31,7 +27,7 @@ public:
      * @param ptr
      * @return false if not a dependency
      */
-    virtual bool CheckDependency(const Job *ptr) const;
+    virtual bool CheckDependency(const Job* ptr) const;
 
 protected:
     virtual void ExecuteImpl() = 0;
@@ -85,53 +81,12 @@ protected:
     std::vector<Job*> dependencies_{};
 };
 
-class WorkerQueue
-{
-public:
-    WorkerQueue() = default;
-    WorkerQueue(const WorkerQueue&) = delete;
-    WorkerQueue& operator= (const WorkerQueue&) = delete;
-    WorkerQueue(WorkerQueue&&) noexcept{}
-    WorkerQueue& operator= (WorkerQueue&&) noexcept{ return *this; }
 
-    void Begin();
-    void AddJob(Job* newJob);
-    bool IsEmpty() const;
-    bool IsRunning() const;
-    Job* PopNextTask();
-    void WaitForTask();
-    void End();
-private:
-    mutable std::shared_mutex mutex_;
-    std::queue<Job*> jobsQueue_;
-    std::condition_variable_any conditionVariable_;
-    std::atomic<bool> isRunning_{ false };
-};
-
-class Worker
-{
-public:
-    Worker(WorkerQueue* queue) : queue_(queue){}
-    void Begin();
-    void End();
-private:
-    void Run();
-    std::thread thread_;
-    WorkerQueue* queue_ = nullptr;
-};
 
 static constexpr auto MAIN_QUEUE_INDEX = -1;
 
-class JobSystem
+namespace JobSystem
 {
-public:
-    JobSystem();
-    ~JobSystem();
-    JobSystem(const JobSystem&) = delete;
-    JobSystem(JobSystem&&) noexcept = default;
-    JobSystem& operator=(const JobSystem&) = delete;
-    JobSystem& operator=(JobSystem&&) = default;
-
     /**
      * @brief SetupNewQueue is a member function that adds a new queue in the JobSystem and
      * adds a certain number of threads attached to it. It must be called before the Begin member function
@@ -144,12 +99,8 @@ public:
     void AddJob(Job* newJob, int queueIndex = MAIN_QUEUE_INDEX);
     void End();
     void ExecuteMainThread();
-private:
-    WorkerQueue mainThreadQueue_{};
-    std::vector<WorkerQueue> queues_{};
-    std::vector<Worker> workers_{};
+
 };
 
-JobSystem* GetJobSystem();
 }
 #endif //NEKOLIB_JOB_SYSTEM_H
