@@ -6,6 +6,7 @@
 #include <functional>
 #include <memory>
 #include <future>
+#include <array>
 
 namespace neko
 {
@@ -20,7 +21,7 @@ public:
     [[nodiscard]] bool IsDone() const;
     [[nodiscard]] virtual bool ShouldStart() const;
     void Reset();
-    void Join();
+    void Join() const;
 
     /**
      * \brief CheckDependency is a member function used to check if the arg ptr is already a dependency
@@ -81,7 +82,74 @@ protected:
     std::vector<Job*> dependencies_{};
 };
 
+template<size_t N>
+class FuncFixedDependenciesJob: public FuncJob
+{
+public:
+    explicit FuncFixedDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
+    {}
+    bool AddDependency(Job* dependency);
+    void Execute() override;
+    bool ShouldStart() const override;
+protected:
+    bool CheckDependency(const Job *ptr) const override;
+    std::array<Job*, N> dependencies_{};
+};
 
+
+template<size_t N>
+bool FuncFixedDependenciesJob<N>::AddDependency(Job* dependency)
+{
+    if (dependency == nullptr || dependency->CheckDependency(this))
+    {
+        return false;
+    }
+    auto it = std::find(dependencies_.begin(), dependencies_.end(), nullptr);
+    if (it != dependencies_.end())
+    {
+        *it = dependency;
+        return true;
+    }
+    return false;
+}
+
+template<size_t N>
+void FuncFixedDependenciesJob<N>::Execute()
+{
+    for(auto& dependency : dependencies_)
+    {
+        if(dependency != nullptr)
+        {
+            dependency->Join();
+        }
+    }
+    FuncJob::Execute();
+}
+
+template<size_t N>
+bool FuncFixedDependenciesJob<N>::ShouldStart() const
+{
+    bool shouldStart = true;
+    for (auto& dependency : dependencies_)
+    {
+        if (dependency != nullptr && !dependency->HasStarted())
+        {
+            shouldStart = false;
+            break;
+        }
+    }
+    return shouldStart;
+}
+
+template<size_t N>
+bool FuncFixedDependenciesJob<N>::CheckDependency(const Job* ptr) const
+{
+    return std::any_of(dependencies_.begin(), dependencies_.end(), [ptr](const auto* dep){
+        if (dep == nullptr)
+            return false;
+        return dep->CheckDependency(ptr);
+    });
+}
 
 static constexpr auto MAIN_QUEUE_INDEX = -1;
 

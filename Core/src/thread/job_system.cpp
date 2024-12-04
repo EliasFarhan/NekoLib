@@ -39,7 +39,7 @@ bool Job::CheckDependency([[maybe_unused]]const Job *ptr) const
     return false;
 }
 
-void Job::Join()
+void Job::Join() const
 {
     while(!IsDone())
     {
@@ -112,7 +112,7 @@ bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
     {
         return true;
     }
-	return std::any_of(dependencies_.begin(), dependencies_.end(), [ptr](const auto* dep){
+	return std::ranges::any_of(dependencies_, [ptr](const auto* dep){
 		return dep->CheckDependency(ptr);
 	});
 }
