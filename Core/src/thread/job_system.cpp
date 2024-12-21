@@ -201,6 +201,7 @@ int SetupNewQueue(int threadCount)
 
 void Begin()
 {
+    isRunning_.store(true, std::memory_order_release);
     for(auto& worker : workers_)
     {
         worker.Begin();
