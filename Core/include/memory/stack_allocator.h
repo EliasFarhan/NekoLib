@@ -3,6 +3,7 @@
 
 
 #include "memory/allocator.h"
+#include <exception>
 
 namespace neko
 {

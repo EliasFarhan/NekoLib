@@ -1,5 +1,7 @@
 #include "memory/freelist_allocator.h"
 
+#include <exception>
+
 namespace neko
 {
 

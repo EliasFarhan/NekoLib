@@ -2,6 +2,7 @@
 #define NEKOLIB_FREELIST_ALLOCATOR_H
 
 #include "memory/allocator.h"
+#include <exception>
 
 namespace neko
 {

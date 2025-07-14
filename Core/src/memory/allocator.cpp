@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <cstdlib>
+#include <exception>
 
 namespace neko
 {

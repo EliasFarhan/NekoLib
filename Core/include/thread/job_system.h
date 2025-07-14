@@ -7,6 +7,7 @@
 #include <memory>
 #include <future>
 #include <array>
+#include <algorithm>
 
 namespace neko
 {
