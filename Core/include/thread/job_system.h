@@ -38,6 +38,28 @@ private:
     std::atomic<bool> isDone_{ false };
 };
 
+class SingleDepJob : public Job
+{
+public:
+    void Execute() override;
+    [[nodiscard]] bool ShouldStart() const override;
+    [[nodiscard]] bool CheckDependency(const Job *ptr) const override;
+private:
+    Job* dependency_{};
+};
+
+class SeveralDepJob : public Job
+{
+public:
+    [[nodiscard]] bool ShouldStart() const override;
+    bool AddDependency(Job* dependency);
+    void Execute() override;
+
+protected:
+    bool CheckDependency(const Job *ptr) const override;
+    std::vector<Job*> dependencies_{};
+};
+
 class FuncJob : public Job
 {
 public:

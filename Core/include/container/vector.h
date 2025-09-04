@@ -9,11 +9,17 @@
 #include <variant>
 #include <array>
 #include <iterator>
+#include <stdexcept>
+#include <string>
 
 namespace neko
 {
-
-    template<typename T, std::size_t Capacity>
+/**
+ * @brief SmallVector is a vector-like on stack fixed-sized container that allows to work like std::vector but on the stack
+ * @tparam T
+ * @tparam Capacity
+ */
+template<typename T, std::size_t Capacity>
     class SmallVector
     {
     public:
@@ -24,38 +30,38 @@ namespace neko
             const auto size = list.size();
             if(size > Capacity)
             {
-                std::terminate();
+                throw std::out_of_range("Error: trying to insert with size over capacity");
             }
             std::copy(list.begin(), list.end(), underlyingContainer_.begin());
             size_ = size;
         }
 
-        constexpr auto begin()
+        [[nodiscard]] constexpr auto begin()
         {
             return underlyingContainer_.begin();
         }
 
-        constexpr auto end()
+        [[nodiscard]] constexpr auto end()
         {
             return underlyingContainer_.begin()+size_;
         }
 
-		constexpr auto begin() const
+		[[nodiscard]] constexpr auto begin() const
 		{
 			return underlyingContainer_.begin();
 		}
 
-		constexpr auto end() const
+		[[nodiscard]] constexpr auto end() const
 		{
 			return underlyingContainer_.begin()+size_;
 		}
 
-        constexpr auto cbegin() const
+        [[nodiscard]] constexpr auto cbegin() const
         {
             return underlyingContainer_.cbegin();
         }
 
-        constexpr auto cend() const
+        [[nodiscard]] constexpr auto cend() const
         {
             return underlyingContainer_.cbegin()+size_;
         }
@@ -64,8 +70,7 @@ namespace neko
         {
             if(size_ == Capacity)
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Error: trying to push_back with size over capacity");
             }
             underlyingContainer_[size_] = value;
             size_++;
@@ -75,8 +80,7 @@ namespace neko
         {
             if(size_ == Capacity)
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Error: trying to push_back with size over capacity");
             }
             underlyingContainer_[size_] = std::move(value);
             size_++;
@@ -94,7 +98,7 @@ namespace neko
             size_ = 0;
         }
 
-        constexpr void resize(std::size_t newSize)
+        constexpr void resize(std::size_t newSize, T newValue={})
         {
             if(size_ == newSize)
             {
@@ -104,7 +108,7 @@ namespace neko
             {
                 for (auto i = size_; i < newSize; i++)
                 {
-                    underlyingContainer_[i] = {};
+                    underlyingContainer_[i] = newValue;
                 }
             }
             else
@@ -120,12 +124,28 @@ namespace neko
             size_ = newSize;
         }
 
-        constexpr T& operator[]( std::size_t pos )
+        [[nodiscard]] constexpr T& at (std::size_t pos)
+        {
+            if (pos >= size_)
+            {
+                throw std::out_of_range("Error: trying to access at position " + std::to_string(pos));
+            }
+            return underlyingContainer_[pos];
+        }
+        [[nodiscard]] constexpr const T& at (std::size_t pos) const
+        {
+            if (pos >= size_)
+            {
+                throw std::out_of_range("Error: trying to access at position " + std::to_string(pos));
+            }
+            return underlyingContainer_[pos];
+        }
+        [[nodiscard]] constexpr T& operator[]( std::size_t pos ) noexcept
         {
             return underlyingContainer_[pos];
         }
 
-        constexpr const T& operator[]( std::size_t pos ) const
+        [[nodiscard]] constexpr const T& operator[]( std::size_t pos ) const noexcept
         {
             return underlyingContainer_[pos];
         }
@@ -134,8 +154,7 @@ namespace neko
         {
             if(size_ == Capacity)
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Error: trying to insert with size over capacity");
             }
             const auto index = std::distance(cbegin(), pos);
             for(auto i = static_cast<std::ptrdiff_t>(size_); i > index; i--)
@@ -151,8 +170,7 @@ namespace neko
         {
             if(size_ == Capacity)
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Error: trying to insert with size over capacity");
             }
             const auto index = std::distance(cbegin(), pos);
             for(auto i = static_cast<std::ptrdiff_t>(size_); i > index; i--)
@@ -182,36 +200,36 @@ namespace neko
             return pos;
         }
 
-        constexpr auto capacity() const
+        [[nodiscard]] static constexpr auto capacity() noexcept
         {
             return Capacity;
         }
 
-        constexpr auto size() const
+        [[nodiscard]] constexpr auto size() const
         {
             return size_;
         }
 
-        constexpr T& front()
+        [[nodiscard]] constexpr T& front()
         {
             return underlyingContainer_.front();
         }
-        constexpr const T& front() const
+        [[nodiscard]] constexpr const T& front() const
         {
             return underlyingContainer_.front();
         }
-        constexpr auto data() noexcept
+        [[nodiscard]] constexpr auto data() noexcept
         {
             return underlyingContainer_.data();
         }
 		[[nodiscard]] constexpr bool is_full() const {return size_ == Capacity;}
 		[[nodiscard]] constexpr bool is_empty() const { return size_ == 0;}
 
-		bool operator==(const SmallVector& other) const
+		[[nodiscard]] bool operator==(const SmallVector& other) const
 		{
 			return size_ == other.size_ && underlyingContainer_ == other.underlyingContainer_;
 		}
-		bool operator!=(const SmallVector& other) const
+		[[nodiscard]] bool operator!=(const SmallVector& other) const
 		{
 			return !operator==(other);
 		}
@@ -238,8 +256,7 @@ namespace neko
         {
             if(list.size() > Capacity)
             {
-                // Over capacity construction
-                std::terminate();
+                throw std::out_of_range("Over capacity");
             }
             underlyingContainer_.reserve(Capacity);
             underlyingContainer_ = list;
@@ -269,8 +286,7 @@ namespace neko
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Over capacity");
             }
             underlyingContainer_.push_back(value);
         }
@@ -279,8 +295,7 @@ namespace neko
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Over capacity");
             }
             underlyingContainer_.push_back(std::move(value));
         }
@@ -303,8 +318,7 @@ namespace neko
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Over capacity");
             }
             return underlyingContainer_.insert(pos, value);
         }
@@ -313,8 +327,7 @@ namespace neko
         {
             if(underlyingContainer_.size() == underlyingContainer_.capacity())
             {
-                // Over-capacity leads to a crash
-                std::terminate();
+                throw std::out_of_range("Over capacity");
             }
             return underlyingContainer_.insert(pos, std::move(value));
         }
@@ -620,9 +633,11 @@ namespace neko
             underlyingContainer_ = std::move(v);
         }
         std::variant<SmallVector<T, Capacity>, std::vector<T, Allocator>> underlyingContainer_;
-        Allocator allocator_;
         std::size_t size_ = 0;
+        [[no_unique_address]] Allocator allocator_;
     };
+//TODO add a new type like std::hive, allocating blocks
+//How does it work for insert/erase?
 }
 
 #endif //NEKOLIB_FIXED_VECTOR_H

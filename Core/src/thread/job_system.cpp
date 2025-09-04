@@ -39,6 +39,84 @@ bool Job::CheckDependency([[maybe_unused]]const Job *ptr) const
     return false;
 }
 
+void SingleDepJob::Execute()
+{
+    if(dependency_ != nullptr)
+    {
+        dependency_->Join();
+    }
+    Job::Execute();
+}
+
+bool SingleDepJob::ShouldStart() const
+{
+    if(dependency_ != nullptr)
+    {
+        return dependency_->HasStarted();
+    }
+    return false;
+}
+
+bool SingleDepJob::CheckDependency(const Job* ptr) const
+{
+    if(ptr == this)
+    {
+        return true;
+    }
+    auto dep = dependency_;
+    if(dep != nullptr) {
+        return dep->CheckDependency(ptr);
+    }
+    return false;
+}
+
+bool SeveralDepJob::ShouldStart() const
+{
+    bool shouldStart = true;
+    for (auto& dependency : dependencies_)
+    {
+        if (dependency != nullptr && !dependency->HasStarted())
+        {
+            shouldStart = false;
+            break;
+        }
+    }
+    return shouldStart;
+}
+
+bool SeveralDepJob::AddDependency(Job* dependency)
+{
+    if(dependency == nullptr || dependency->CheckDependency(this))
+    {
+        return false;
+    }
+    dependencies_.push_back(dependency);
+    return true;
+}
+
+void SeveralDepJob::Execute()
+{
+    for(auto& dependency : dependencies_)
+    {
+        if(dependency != nullptr)
+        {
+            dependency->Join();
+        }
+    }
+    Job::Execute();
+}
+
+bool SeveralDepJob::CheckDependency(const Job* ptr) const
+{
+    if(ptr == this)
+    {
+        return true;
+    }
+    return std::ranges::any_of(dependencies_, [ptr](const auto* dep){
+        return dep->CheckDependency(ptr);
+    });
+}
+
 void Job::Join() const
 {
     while(!IsDone())
