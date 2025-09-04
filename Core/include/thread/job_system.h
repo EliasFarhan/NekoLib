@@ -38,46 +38,11 @@ private:
     std::atomic<bool> isDone_{ false };
 };
 
-class SingleDepJob : public Job
+
+class DependentJob : public Job
 {
 public:
-    void Execute() override;
-    [[nodiscard]] bool ShouldStart() const override;
-    [[nodiscard]] bool CheckDependency(const Job *ptr) const override;
-private:
-    Job* dependency_{};
-};
-
-class SeveralDepJob : public Job
-{
-public:
-    [[nodiscard]] bool ShouldStart() const override;
-    bool AddDependency(Job* dependency);
-    void Execute() override;
-
-protected:
-    bool CheckDependency(const Job *ptr) const override;
-    std::vector<Job*> dependencies_{};
-};
-
-class FuncJob : public Job
-{
-public:
-    explicit FuncJob() = default;
-    explicit FuncJob(const std::function<void(void)>& func): func_(func){}
-
-protected:
-    void ExecuteImpl() override;
-private:
-    std::function<void(void)> func_{};
-};
-
-class FuncDependentJob : public FuncJob
-{
-public:
-    FuncDependentJob(Job* dependency, const std::function<void(void)>& func) :
-            FuncJob(func),
-            dependency_(dependency)
+    DependentJob(Job* dependency) : dependency_(dependency)
     {
 
     }
@@ -88,16 +53,12 @@ private:
     Job* dependency_{};
 };
 
-class FuncDependenciesJob: public FuncJob
+class DependenciesJob: public Job
 {
 public:
-    explicit FuncDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
-    {}
-    FuncDependenciesJob(std::initializer_list<Job*> dependencies, const std::function<void(void)>& func):
-            FuncJob(func), dependencies_(dependencies)
-    {}
+    DependenciesJob() = default;
+    DependenciesJob(std::initializer_list<Job*> dependencies) : dependencies_(dependencies){}
     [[nodiscard]] bool ShouldStart() const override;
-
     bool AddDependency(Job* dependency);
     void Execute() override;
 protected:
@@ -106,11 +67,9 @@ protected:
 };
 
 template<size_t N>
-class FuncFixedDependenciesJob: public FuncJob
+class FixedDependenciesJob : Job
 {
 public:
-    explicit FuncFixedDependenciesJob(const std::function<void(void)>& func): FuncJob(func)
-    {}
     bool AddDependency(Job* dependency);
     void Execute() override;
     bool ShouldStart() const override;
@@ -121,7 +80,7 @@ protected:
 
 
 template<size_t N>
-bool FuncFixedDependenciesJob<N>::AddDependency(Job* dependency)
+bool FixedDependenciesJob<N>::AddDependency(Job* dependency)
 {
     if (dependency == nullptr || dependency->CheckDependency(this))
     {
@@ -137,7 +96,7 @@ bool FuncFixedDependenciesJob<N>::AddDependency(Job* dependency)
 }
 
 template<size_t N>
-void FuncFixedDependenciesJob<N>::Execute()
+void FixedDependenciesJob<N>::Execute()
 {
     for(auto& dependency : dependencies_)
     {
@@ -146,11 +105,11 @@ void FuncFixedDependenciesJob<N>::Execute()
             dependency->Join();
         }
     }
-    FuncJob::Execute();
+    Job::Execute();
 }
 
 template<size_t N>
-bool FuncFixedDependenciesJob<N>::ShouldStart() const
+bool FixedDependenciesJob<N>::ShouldStart() const
 {
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
@@ -165,7 +124,7 @@ bool FuncFixedDependenciesJob<N>::ShouldStart() const
 }
 
 template<size_t N>
-bool FuncFixedDependenciesJob<N>::CheckDependency(const Job* ptr) const
+bool FixedDependenciesJob<N>::CheckDependency(const Job* ptr) const
 {
     return std::any_of(dependencies_.begin(), dependencies_.end(), [ptr](const auto* dep){
         if (dep == nullptr)

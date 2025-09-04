@@ -4,8 +4,6 @@
 namespace neko
 {
 
-
-
 void Job::Execute()
 {
     hasStarted_.store(true, std::memory_order_release);
@@ -124,12 +122,8 @@ void Job::Join() const
     }
 }
 
-void FuncJob::ExecuteImpl()
-{
-    func_();
-}
 
-bool FuncDependentJob::ShouldStart() const
+bool DependentJob::ShouldStart() const
 {
     if(dependency_ != nullptr)
     {
@@ -138,7 +132,7 @@ bool FuncDependentJob::ShouldStart() const
     return false;
 }
 
-bool FuncDependentJob::CheckDependency(const Job *ptr) const
+bool DependentJob::CheckDependency(const Job *ptr) const
 {
     if(ptr == this)
     {
@@ -151,7 +145,7 @@ bool FuncDependentJob::CheckDependency(const Job *ptr) const
     return false;
 }
 
-void FuncDependentJob::Execute()
+void DependentJob::Execute()
 {
     if(dependency_ != nullptr)
     {
@@ -160,7 +154,7 @@ void FuncDependentJob::Execute()
     Job::Execute();
 }
 
-bool FuncDependenciesJob::ShouldStart() const
+bool DependenciesJob::ShouldStart() const
 {
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
@@ -174,7 +168,7 @@ bool FuncDependenciesJob::ShouldStart() const
     return shouldStart;
 }
 
-bool FuncDependenciesJob::AddDependency(Job* dependency)
+bool DependenciesJob::AddDependency(Job* dependency)
 {
     if(dependency == nullptr || dependency->CheckDependency(this))
     {
@@ -184,7 +178,7 @@ bool FuncDependenciesJob::AddDependency(Job* dependency)
     return true;
 }
 
-bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
+bool DependenciesJob::CheckDependency(const Job *ptr) const
 {
     if(ptr == this)
     {
@@ -195,7 +189,7 @@ bool FuncDependenciesJob::CheckDependency(const Job *ptr) const
 	});
 }
 
-void FuncDependenciesJob::Execute()
+void DependenciesJob::Execute()
 {
     for(auto& dependency : dependencies_)
     {
