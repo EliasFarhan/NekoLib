@@ -43,18 +43,30 @@ void Wallet::IncMoney()
     mMoney++;
 }
 
+class WalletJob : public neko::Job
+{
+public:
+    explicit WalletJob(Wallet& wallet): wallet_(wallet)
+    {
+
+    }
+    void ExecuteImpl() override
+    {
+        wallet_.AddMoney(total);
+    }
+private:
+    Wallet& wallet_;
+};
+
 int TestMultithreadedWallet(int totalThread)
 {
-
     Wallet walletObject;
     auto queueIndex = neko::JobSystem::SetupNewQueue(totalThread);
     neko::JobSystem::Begin();
-	std::vector<std::shared_ptr<neko::FuncJob>> jobs(totalThread);
+	std::vector<std::unique_ptr<WalletJob>> jobs(totalThread);
     for (int i = 0; i < totalThread; ++i)
     {
-		jobs.push_back(std::make_shared<neko::FuncJob>([&walletObject](){
-			walletObject.AddMoney(total);
-		}));
+		jobs.push_back(std::make_unique<WalletJob>(walletObject));
         neko::JobSystem::AddJob(jobs.back().get(), queueIndex);
     }
     neko::JobSystem::End();

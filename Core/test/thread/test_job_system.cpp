@@ -5,10 +5,13 @@
 #include "thread/job_system.h"
 #include "gtest/gtest.h"
 
-
+class EmptyJob : public neko::Job
+{
+    void ExecuteImpl() override {}
+};
 TEST(JobSystem, FuncJob)
 {
-    neko::FuncJob job{ [](){} };
+    EmptyJob job{};
 
     EXPECT_FALSE(job.HasStarted());
     EXPECT_FALSE(job.IsDone());
@@ -27,10 +30,16 @@ TEST(JobSystem, FuncJob)
     EXPECT_TRUE(job.ShouldStart());
 }
 
+class EmptyDependentJob : public neko::DependentJob
+{
+    using DependentJob::DependentJob;
+    void ExecuteImpl() override {}
+};
+
 TEST(JobSystem, DependencyJob)
 {
-	neko::FuncJob parentJob( [](){} );
-    neko::FuncDependentJob job{&parentJob, [](){} };
+	EmptyJob parentJob;
+    EmptyDependentJob job{&parentJob};
 
     EXPECT_FALSE(job.ShouldStart());
 
@@ -40,13 +49,17 @@ TEST(JobSystem, DependencyJob)
     job.Execute();
     EXPECT_TRUE(job.IsDone());
 }
-
+class EmptyDependenciesJob : public neko::DependenciesJob
+{
+    using DependenciesJob::DependenciesJob;
+    void ExecuteImpl() override {}
+};
 TEST(JobSystem, DependenciesJob)
 {
-    neko::FuncJob parentJob1 ( [](){} );
-    neko::FuncJob parentJob2 ( [](){} );
-    neko::FuncJob parentJob3 ( [](){} );
-    neko::FuncDependenciesJob job{{&parentJob1, &parentJob2}, [](){} };
+    EmptyJob parentJob1;
+    EmptyJob parentJob2;
+    EmptyJob parentJob3;
+    EmptyDependenciesJob job{{&parentJob1, &parentJob2}};
 
     EXPECT_FALSE(job.ShouldStart());
 
@@ -67,16 +80,14 @@ TEST(JobSystem, DependenciesJob)
 
 TEST(JobSystem, CyclicDependenciesJob)
 {
-	neko::FuncDependenciesJob parentJob1( [](){} );
-	neko::FuncDependentJob parentJob2 ( &parentJob1, [](){} );
-	neko::FuncJob parentJob3( [](){} );
+	EmptyDependenciesJob parentJob1;
+	EmptyDependentJob parentJob2 (&parentJob1);
+	EmptyJob parentJob3;
 
     EXPECT_FALSE(parentJob1.AddDependency(&parentJob2));
     EXPECT_TRUE(parentJob1.AddDependency(&parentJob3));
 
-	neko::FuncDependenciesJob parentJob4 (
-            std::initializer_list<neko::Job*> {&parentJob2},
-            [](){} );
+	EmptyDependenciesJob parentJob4 (std::initializer_list<neko::Job*> {&parentJob2});
     EXPECT_FALSE(parentJob1.AddDependency(&parentJob4));
 
 }
@@ -93,6 +104,19 @@ TEST(JobSystem, JobSystemSeveralQueuesEmpty)
 
 }
 
+template<int finalNumber>
+class AssignementJob : public neko::Job
+{
+public:
+    explicit AssignementJob(int& number): number_(number){}
+    void ExecuteImpl() override
+    {
+        number_ = finalNumber;
+    }
+private:
+    int& number_;
+};
+
 TEST(JobSystem, JobSystemOneQueue)
 {
 
@@ -102,16 +126,41 @@ TEST(JobSystem, JobSystemOneQueue)
 
     int number = 0;
     constexpr int finalNumber = 3;
-	neko::FuncJob job([&number, finalNumber]
-	{
-	    number = finalNumber;
-	});
+	AssignementJob<finalNumber> job(number);
     neko::JobSystem::AddJob(&job, queueIndex);
 
     neko::JobSystem::End();
 
     EXPECT_EQ(number, finalNumber);
 }
+
+template<int finalNumber, int expectedNumber>
+class ExpectedAssignmentJob : public neko::Job
+{
+public:
+    explicit ExpectedAssignmentJob(int& number): number_(number){}
+    void ExecuteImpl() override
+    {
+        EXPECT_EQ(number_, expectedNumber);
+        number_ = finalNumber;
+    }
+private:
+    int& number_;
+};
+
+template<int finalNumber, int expectedNumber>
+class DependentExpectedAssignmentJob: public neko::DependentJob
+{
+public:
+    explicit DependentExpectedAssignmentJob(Job* parentJob, int& number): number_(number), DependentJob(parentJob){}
+    void ExecuteImpl() override
+    {
+        EXPECT_EQ(number_, expectedNumber);
+        number_ = finalNumber;
+    }
+    private:
+    int& number_;
+};
 
 TEST(JobSystem, JobSystemMainQueue)
 {
@@ -123,26 +172,35 @@ TEST(JobSystem, JobSystemMainQueue)
     constexpr int firstNumber = 1;
     int number = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number, &firstNumber, secondNumber](){
-        EXPECT_EQ(number, firstNumber);
-        number = secondNumber;
-    });
+	ExpectedAssignmentJob<secondNumber, firstNumber> firstJob(number);
     neko::JobSystem::AddJob(&firstJob, queueIndex);
 
     constexpr int finalNumber = 5;
-	neko::FuncDependentJob mainJob(&firstJob,
-		[&number, &firstNumber, &secondNumber, finalNumber]()
-    {
-        EXPECT_NE(number, firstNumber);
-        EXPECT_EQ(number, secondNumber);
-        number = finalNumber;
-    });
+	DependentExpectedAssignmentJob<finalNumber, secondNumber> mainJob(&firstJob,
+		number);
     neko::JobSystem::AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
     neko::JobSystem::ExecuteMainThread();
     neko::JobSystem::End();
 
     EXPECT_EQ(number, finalNumber);
 }
+
+template<int finalNumber, int expectedNumber1, int expectedNumber2>
+class DependenciesExpectedAssignmentJob : public neko::DependenciesJob
+{
+public:
+    DependenciesExpectedAssignmentJob(std::initializer_list<Job*> parentJobs, int& number1, int& number2): number1_(number1), number2_(number2), DependenciesJob(parentJobs){}
+    void ExecuteImpl() override
+    {
+        EXPECT_EQ(number1_, expectedNumber1);
+        EXPECT_EQ(number2_, expectedNumber2);
+        number1_ = finalNumber;
+        number2_ = finalNumber;
+    }
+private:
+    int& number1_;
+    int& number2_;
+};
 
 TEST(JobSystem, JobSystemDependenciesStart)
 {
@@ -155,30 +213,17 @@ TEST(JobSystem, JobSystemDependenciesStart)
     int number1 = firstNumber;
     int number2 = firstNumber;
     constexpr int secondNumber = 3;
-	neko::FuncJob firstJob([&number1, secondNumber](){
-
-        number1 = secondNumber;
-    });
+	AssignementJob<secondNumber> firstJob(number1);
     neko::JobSystem::AddJob(&firstJob, queueIndex);
     constexpr int thirdNumber = 4;
-	neko::FuncJob secondJob([&number2, thirdNumber](){
-
-        number2 = thirdNumber;
-    });
+	AssignementJob<thirdNumber> secondJob(number2);
     neko::JobSystem::AddJob(&secondJob, queueIndex);
 
     constexpr int finalNumber = 5;
-	neko::FuncDependenciesJob mainJob(
+	DependenciesExpectedAssignmentJob<finalNumber, secondNumber, thirdNumber> mainJob(
             {&firstJob, &secondJob},
-            [&number1, &number2, &firstNumber, &secondNumber, &thirdNumber, finalNumber]()
-    {
-        EXPECT_NE(number1, firstNumber);
-        EXPECT_EQ(number1, secondNumber);
-        EXPECT_NE(number2, firstNumber);
-        EXPECT_EQ(number2, thirdNumber);
-        number1 = finalNumber;
-        number2 = finalNumber;
-    });
+            number1, number2);
+
     neko::JobSystem::AddJob(&mainJob, neko::MAIN_QUEUE_INDEX);
     neko::JobSystem::ExecuteMainThread();
     neko::JobSystem::End();

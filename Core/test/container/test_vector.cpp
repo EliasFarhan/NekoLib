@@ -31,7 +31,7 @@ TEST(SmallVector, PushBack)
         EXPECT_EQ(v.front(), 0);
     }
 
-    EXPECT_DEATH(v.push_back(10), "");
+    EXPECT_THROW(v.push_back(10), std::out_of_range);
 
 }
 
@@ -135,7 +135,7 @@ TEST(FixedVector, PushOverCapacityDeathTest)
     {
         v.push_back(i);
     }
-    EXPECT_DEATH(v.push_back(0), "");
+    EXPECT_THROW(v.push_back(0), std::out_of_range);
 }
 
 TEST(BasicVector, Construct)
