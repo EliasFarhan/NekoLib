@@ -21,11 +21,11 @@ public:
     using index_type = IndexType;
     using generation_index_type = GenerationIndexType;
 
-    explicit Index(int index, int generationIndex = 0) : index_(index), generationIndex_(generationIndex)
+    constexpr explicit Index(int index, int generationIndex = 0) : index_(index), generationIndex_(generationIndex)
     {
     }
 
-    bool operator==(const Index& index) const
+    [[nodiscard]] constexpr bool operator==(const Index& index) const
     {
         return index_ == index.index_ && generationIndex_ == index.generationIndex_;
     }
