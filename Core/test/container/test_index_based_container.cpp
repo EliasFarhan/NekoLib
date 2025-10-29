@@ -58,5 +58,41 @@ TEST(IndexBasedContainer, MoveValue) {
   EXPECT_EQ(values.at(index).value, value);
   values.remove(index);
   [[maybe_unused]] const auto default_index = values.add();
+}
+
+template<typename T>
+class CustomAllocator
+{
+public:
+  using value_type = T;
+  CustomAllocator() = default;
+  template<typename U>
+    constexpr CustomAllocator(const CustomAllocator<U>&) noexcept {}
+
+  T* allocate(std::size_t n) {
+    if (n > std::allocator_traits<CustomAllocator>::max_size(*this)) {
+      throw std::bad_alloc();
+    }
+    const auto size = n * sizeof(T);
+    total_size += size;
+    return static_cast<T*>(::operator new(size));
+  }
+
+  void deallocate(T* p, std::size_t n) noexcept {
+    const auto size = n * sizeof(T);
+    total_size-=size;
+    ::operator delete(p);
+  }
+
+  size_t total_size = 0;
+};
+
+TEST(IndexBasedContainer, WithCustomAllocator)
+{
+  using custom_allocator_type = neko::indexed_container_allocator_type<CustomAllocator, Value>;
+  custom_allocator_type allocator;
+  neko::IndexBasedContainer<Value, custom_allocator_type> values{allocator};
+  values.add();
+  EXPECT_EQ(values.allocator().total_size, sizeof(std::pair<Value, neko::Index<Value>::generation_index_type>));
 
 }
