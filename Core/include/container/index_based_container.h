@@ -1,8 +1,4 @@
-﻿//
-// Created by unite on 05.06.2024.
-//
-
-#ifndef NEKOLIB_INDEX_BASED_CONTAINER_H
+﻿#ifndef NEKOLIB_INDEX_BASED_CONTAINER_H
 #define NEKOLIB_INDEX_BASED_CONTAINER_H
 #include <algorithm>
 #include <stdexcept>
@@ -30,14 +26,43 @@ public:
 private:
   template<typename U>
   friend class IndexBasedContainer;
-  int index_ = -1;
+  IndexType index_ = -1;
   GenerationIndexType generationIndex_ = 0;
 };
 
 template<typename T>
 class IndexBasedContainer {
   public:
-  Index<T> add_value() {
+  Index<T> add(T&& new_value)
+  {
+    auto it = std::find_if(values_.begin(), values_.end(),[](const auto& v) {
+      return v.first.IsInvalid();
+    });
+    if (it == values_.end()) {
+      Index<T> index{static_cast<Index<T>::index_type>(std::ssize(values_))};
+      values_.push_back({std::move(new_value), 0});
+      return index;
+    }
+    Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+    it->first = std::move(new_value);
+    return index;
+  }
+  Index<T> add(const T& new_value)
+  {
+    auto it = std::find_if(values_.begin(), values_.end(),[](const auto& v) {
+      return v.first.IsInvalid();
+    });
+    if (it == values_.end()) {
+      Index<T> index{static_cast<Index<T>::index_type>(std::ssize(values_))};
+      values_.push_back({new_value, 0});
+      return index;
+    }
+    Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+    it->first = new_value;
+    return index;
+  }
+
+  Index<T> add() {
     auto it = std::find_if(values_.begin(), values_.end(),[](const auto& v) {
       return v.first.IsInvalid();
     });
@@ -47,7 +72,7 @@ class IndexBasedContainer {
       return index;
     }
     Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
-    *it = {};
+    it->first = {};
     return index;
   }
   [[nodiscard]] const T& at(Index<T> index) const {
