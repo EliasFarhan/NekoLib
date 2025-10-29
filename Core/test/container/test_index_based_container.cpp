@@ -96,3 +96,20 @@ TEST(IndexBasedContainer, WithCustomAllocator)
   EXPECT_EQ(values.allocator().total_size, sizeof(std::pair<Value, neko::Index<Value>::generation_index_type>));
 
 }
+
+TEST(IndexBasedContainer, RangeBasedFor)
+{
+  neko::IndexBasedContainer<Value> values = {};
+  int total = 0;
+  for (int i = 0; i < 10; ++i)
+  {
+    values.add({i});
+    total += i;
+  }
+  int value_total = 0;
+  for (const auto& v : values)
+  {
+    value_total += v.value;
+  }
+  EXPECT_EQ(total, value_total);
+}

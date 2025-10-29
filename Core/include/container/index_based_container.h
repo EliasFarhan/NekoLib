@@ -104,6 +104,24 @@ public:
         it->first = {};
         return index;
     }
+    [[nodiscard]] T& operator[](Index<T> index)
+    {
+        auto& pair = values_[index.index_];
+        if (index.generationIndex_ != pair.second)
+        {
+            throw std::out_of_range("Wrong generation index");
+        }
+        return pair.first;
+    }
+    [[nodiscard]] const T& operator[](Index<T> index) const
+    {
+        const auto& pair = values_[index.index_];
+        if (index.generationIndex_ != pair.second)
+        {
+            throw std::out_of_range("Wrong Generation Index");
+        }
+        return pair.first;
+    }
 
     [[nodiscard]] const T& at(Index<T> index) const
     {
@@ -143,6 +161,47 @@ public:
             return !v.IsInvalid();
         });
     }
+
+    class Iterator {
+    public:
+        using iterator_category = std::random_access_iterator_tag;
+        using value_type        = T;
+        using difference_type   = std::ptrdiff_t;
+        using pointer           = T*;
+        using reference         = T&;
+        using pair_type         = std::pair<T, typename Index<T>::generation_index_type>;
+
+        explicit Iterator(pair_type* ptr) : m_ptr(ptr) {}
+
+        reference operator*() const { return m_ptr->first; }
+        pointer operator->() const { return &m_ptr->first; }
+        Iterator& operator++() { ++m_ptr; return *this; }
+        Iterator operator++(int) { Iterator tmp = *this; ++(*this); return tmp; }
+        Iterator& operator--() { --m_ptr; return *this; }
+        Iterator operator--(int) { Iterator tmp = *this; --(*this); return tmp; }
+        Iterator operator+(difference_type n) const { return MyIterator(m_ptr + n); }
+        Iterator operator-(difference_type n) const { return MyIterator(m_ptr - n); }
+        difference_type operator-(const Iterator& other) const { return m_ptr - other.m_ptr; }
+        bool operator==(const Iterator& other) const { return m_ptr == other.m_ptr; }
+        bool operator!=(const Iterator& other) const { return m_ptr != other.m_ptr; }
+        bool operator<(const Iterator& other) const { return m_ptr < other.m_ptr; }
+        bool operator>(const Iterator& other) const { return m_ptr > other.m_ptr; }
+        bool operator<=(const Iterator& other) const { return m_ptr <= other.m_ptr; }
+        bool operator>=(const Iterator& other) const { return m_ptr >= other.m_ptr; }
+
+    private:
+        pair_type* m_ptr;
+    };
+
+    auto begin()
+    {
+        return Iterator{values_.data()};
+    }
+    auto end()
+    {
+        return Iterator{values_.data()+values_.size()};
+    }
+
 
     auto allocator() const noexcept{return values_.get_allocator();}
 private:
