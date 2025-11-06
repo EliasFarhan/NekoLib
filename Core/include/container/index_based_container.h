@@ -69,7 +69,7 @@ public:
             values_.push_back({std::move(new_value), 0});
             return index;
         }
-        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it)), it->second};
         it->first = std::move(new_value);
         return index;
     }
@@ -86,7 +86,7 @@ public:
             values_.push_back({new_value, 0});
             return index;
         }
-        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it)), it->second};
         it->first = new_value;
         return index;
     }
@@ -103,7 +103,7 @@ public:
             values_.push_back({{}, 0});
             return index;
         }
-        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it)), it->second};
         it->first = {};
         return index;
     }
