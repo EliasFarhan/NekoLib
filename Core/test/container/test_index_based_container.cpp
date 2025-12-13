@@ -31,6 +31,16 @@ TEST(IndexBasedContainer, GettingARemovedValueThrows) {
   EXPECT_THROW(auto v = values.at(index), std::out_of_range);
 }
 
+
+TEST(IndexBasedContainer, AddAfterRemove) {
+  neko::IndexBasedContainer<Value> values = {};
+  auto index = values.add();
+  values.remove(index);
+  auto new_index = values.add();
+  EXPECT_NE(index, new_index);
+  EXPECT_EQ(values.size(), 1);
+}
+
 class MoveOnlyValue {
 public:
   int value = 0;

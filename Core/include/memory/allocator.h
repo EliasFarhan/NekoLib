@@ -28,8 +28,8 @@ public:
     CustomAllocator(void* rootPtr, std::size_t size);
     virtual void Init(void* rootPtr, std::size_t size);
 
-    std::size_t GetUsedMemory() const { return usedMemory_; }
-    std::size_t GetSize() const { return size_; }
+    [[nodiscard]] size_t GetUsedMemory() const noexcept { return usedMemory_; }
+    [[nodiscard]] size_t GetSize() const { return size_; }
 
 protected:
     
