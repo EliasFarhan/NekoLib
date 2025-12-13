@@ -241,7 +241,7 @@ public:
             values_.push_back({std::move(new_value), 0});
             return index;
         }
-        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it))};
+        Index<T> index{static_cast<Index<T>::index_type>(std::distance(values_.begin(), it)), it->second+1};
         it->first = std::move(new_value);
         return index;
     }
