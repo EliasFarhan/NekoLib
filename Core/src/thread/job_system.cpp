@@ -7,7 +7,20 @@ namespace neko
 void Job::Execute()
 {
     hasStarted_.store(true, std::memory_order_release);
-    ExecuteImpl();
+    if (IsCancelled())
+    {
+        failed_.store(true, std::memory_order_release);
+        isDone_.store(true, std::memory_order_release);
+        return;
+    }
+    try
+    {
+        ExecuteImpl();
+    }
+    catch (...)
+    {
+        failed_.store(true, std::memory_order_release);
+    }
     isDone_.store(true, std::memory_order_release);
 }
 
@@ -30,11 +43,29 @@ void Job::Reset()
 {
     hasStarted_.store(false, std::memory_order_release);
     isDone_.store(false, std::memory_order_release);
+    failed_.store(false, std::memory_order_release);
 }
 
 bool Job::CheckDependency([[maybe_unused]]const Job *ptr) const
 {
     return false;
+}
+
+bool Job::HasFailed() const
+{
+    return failed_.load(std::memory_order_acquire);
+}
+
+bool Job::IsCancelled() const
+{
+    return cancelFlag_ != nullptr && cancelFlag_->load(std::memory_order_acquire);
+}
+
+void Job::SkipAsFailed()
+{
+    hasStarted_.store(true, std::memory_order_release);
+    failed_.store(true, std::memory_order_release);
+    isDone_.store(true, std::memory_order_release);
 }
 
 void Job::Join() const
@@ -72,6 +103,11 @@ void DependentJob::Execute()
     if(dependency_ != nullptr)
     {
 		dependency_->Join();
+        if (dependency_->HasFailed())
+        {
+            SkipAsFailed();
+            return;
+        }
     }
     Job::Execute();
 }
@@ -118,6 +154,11 @@ void DependenciesJob::Execute()
         if(dependency != nullptr)
         {
 			dependency->Join();
+            if (dependency->HasFailed())
+            {
+                SkipAsFailed();
+                return;
+            }
         }
     }
     Job::Execute();

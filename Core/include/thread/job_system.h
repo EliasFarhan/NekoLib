@@ -20,9 +20,12 @@ public:
     virtual void Execute();
     [[nodiscard]] bool HasStarted() const;
     [[nodiscard]] bool IsDone() const;
+    [[nodiscard]] bool HasFailed() const;
+    [[nodiscard]] bool IsCancelled() const;
     [[nodiscard]] virtual bool ShouldStart() const;
     void Reset();
     void Join() const;
+    void SetCancelFlag(std::atomic<bool>* flag) { cancelFlag_ = flag; }
 
     /**
      * \brief CheckDependency is a member function used to check if the arg ptr is already a dependency
@@ -33,9 +36,12 @@ public:
 
 protected:
     virtual void ExecuteImpl() = 0;
+    void SkipAsFailed();
 private:
     std::atomic<bool> hasStarted_{ false };
     std::atomic<bool> isDone_{ false };
+    std::atomic<bool> failed_{ false };
+    std::atomic<bool>* cancelFlag_{ nullptr };
 };
 
 
@@ -103,6 +109,11 @@ void FixedDependenciesJob<N>::Execute()
         if(dependency != nullptr)
         {
             dependency->Join();
+            if (dependency->HasFailed())
+            {
+                SkipAsFailed();
+                return;
+            }
         }
     }
     Job::Execute();
