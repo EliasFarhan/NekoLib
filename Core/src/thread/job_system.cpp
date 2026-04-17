@@ -68,6 +68,21 @@ void Job::SkipAsFailed()
     isDone_.store(true, std::memory_order_release);
 }
 
+void Job::MarkStarted()
+{
+    hasStarted_.store(true, std::memory_order_release);
+}
+
+void Job::MarkDone()
+{
+    isDone_.store(true, std::memory_order_release);
+}
+
+void Job::MarkFailed()
+{
+    failed_.store(true, std::memory_order_release);
+}
+
 void Job::Join() const
 {
     while(!IsDone())
@@ -164,6 +179,44 @@ void DependenciesJob::Execute()
     Job::Execute();
 }
 
+
+bool ScheduleJob::ShouldStart() const
+{
+    return dependency_ == nullptr || dependency_->HasStarted();
+}
+
+bool ScheduleJob::CheckDependency(const Job* ptr) const
+{
+    if (ptr == this)
+    {
+        return true;
+    }
+    return dependency_ != nullptr && dependency_->CheckDependency(ptr);
+}
+
+void ScheduleJob::Execute()
+{
+    MarkStarted();
+
+    if (dependency_ != nullptr)
+    {
+        dependency_->Join();
+    }
+
+    // Always schedule the contained job, even on upstream failure / cancellation,
+    // so downstream consumers joining on it never deadlock.  The contained job's
+    // own cancel flag handles cancellation end-to-end.
+    if (containedJob_ != nullptr)
+    {
+        JobSystem::AddJob(containedJob_, queueIndex_);
+    }
+
+    if (IsCancelled() || (dependency_ != nullptr && dependency_->HasFailed()))
+    {
+        MarkFailed();
+    }
+    MarkDone();
+}
 
 
 class WorkerQueue

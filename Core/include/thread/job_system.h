@@ -37,6 +37,9 @@ public:
 protected:
     virtual void ExecuteImpl() = 0;
     void SkipAsFailed();
+    void MarkStarted();
+    void MarkDone();
+    void MarkFailed();
 private:
     std::atomic<bool> hasStarted_{ false };
     std::atomic<bool> isDone_{ false };
@@ -145,6 +148,35 @@ bool FixedDependenciesJob<N>::CheckDependency(const Job* ptr) const
 }
 
 static constexpr auto MAIN_QUEUE_INDEX = -1;
+
+/// Dynamically adds a contained job to a target queue once its own dependency
+/// has finished.  Useful when a job must run on a specific queue (e.g. the main
+/// thread) but should NOT be pre-scheduled — avoiding the wasted per-frame
+/// re-queue churn while it sits waiting for upstream work.
+///
+/// Robust under cancellation: the contained job is ALWAYS scheduled, even if
+/// this job's dependency fails or this job itself is cancelled.  The contained
+/// job's own cancel flag / failure propagation is responsible for end-to-end
+/// cancellation semantics; without this guarantee, any downstream job joining
+/// on the contained job would deadlock.
+class ScheduleJob : public Job
+{
+public:
+    ScheduleJob(Job* containedJob, int queueIndex, Job* dependency = nullptr)
+        : containedJob_(containedJob), queueIndex_(queueIndex), dependency_(dependency) {}
+
+    void Execute() override;
+    [[nodiscard]] bool ShouldStart() const override;
+    [[nodiscard]] bool CheckDependency(const Job* ptr) const override;
+
+protected:
+    void ExecuteImpl() override {}
+
+private:
+    Job* containedJob_;
+    int queueIndex_;
+    Job* dependency_;
+};
 
 namespace JobSystem
 {
