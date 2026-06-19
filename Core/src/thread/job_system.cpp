@@ -1,16 +1,26 @@
 #include "thread/job_system.h"
-#include <concurrentqueue.h>
+#include <blockingconcurrentqueue.h>
+#include <thread>
+
+
+#ifdef TRACY_ENABLE
+#include <tracy/Tracy.hpp>
+#endif
 
 namespace neko
 {
 
 void Job::Execute()
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     hasStarted_.store(true, std::memory_order_release);
     if (IsCancelled())
     {
         failed_.store(true, std::memory_order_release);
         isDone_.store(true, std::memory_order_release);
+        isDone_.notify_all();
         return;
     }
     try
@@ -22,6 +32,7 @@ void Job::Execute()
         failed_.store(true, std::memory_order_release);
     }
     isDone_.store(true, std::memory_order_release);
+    isDone_.notify_all();
 }
 
 bool Job::HasStarted() const
@@ -66,6 +77,7 @@ void Job::SkipAsFailed()
     hasStarted_.store(true, std::memory_order_release);
     failed_.store(true, std::memory_order_release);
     isDone_.store(true, std::memory_order_release);
+    isDone_.notify_all();
 }
 
 void Job::MarkStarted()
@@ -76,6 +88,7 @@ void Job::MarkStarted()
 void Job::MarkDone()
 {
     isDone_.store(true, std::memory_order_release);
+    isDone_.notify_all();
 }
 
 void Job::MarkFailed()
@@ -85,8 +98,13 @@ void Job::MarkFailed()
 
 void Job::Join() const
 {
+
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     while(!IsDone())
     {
+        isDone_.wait(false, std::memory_order_acquire);
     }
 }
 
@@ -95,13 +113,16 @@ bool DependentJob::ShouldStart() const
 {
     if(dependency_ != nullptr)
     {
-        return dependency_->HasStarted();
+        return dependency_->IsDone();
     }
     return false;
 }
 
 bool DependentJob::CheckDependency(const Job *ptr) const
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     if(ptr == this)
     {
         return true;
@@ -115,6 +136,9 @@ bool DependentJob::CheckDependency(const Job *ptr) const
 
 void DependentJob::Execute()
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     if(dependency_ != nullptr)
     {
 		dependency_->Join();
@@ -129,10 +153,13 @@ void DependentJob::Execute()
 
 bool DependenciesJob::ShouldStart() const
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
     {
-        if (dependency != nullptr && !dependency->HasStarted())
+        if (dependency != nullptr && !dependency->IsDone())
         {
             shouldStart = false;
             break;
@@ -164,6 +191,10 @@ bool DependenciesJob::CheckDependency(const Job *ptr) const
 
 void DependenciesJob::Execute()
 {
+
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     for(auto& dependency : dependencies_)
     {
         if(dependency != nullptr)
@@ -187,6 +218,9 @@ bool ScheduleJob::ShouldStart() const
 
 bool ScheduleJob::CheckDependency(const Job* ptr) const
 {
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     if (ptr == this)
     {
         return true;
@@ -196,6 +230,10 @@ bool ScheduleJob::CheckDependency(const Job* ptr) const
 
 void ScheduleJob::Execute()
 {
+
+#ifdef TRACY_ENABLE
+    ZoneScoped;
+#endif
     MarkStarted();
 
     if (dependency_ != nullptr)
@@ -231,9 +269,10 @@ public:
     void AddJob(Job* newJob);
     bool IsEmpty() const;
     Job* PopNextTask();
+    bool WaitDequeue(Job*& out, std::int64_t timeoutUsecs);
     void End();
 private:
-    moodycamel::ConcurrentQueue<Job*> jobsQueue_;
+    moodycamel::BlockingConcurrentQueue<Job*> jobsQueue_;
 };
 
 
@@ -328,12 +367,12 @@ void End()
 
 void ExecuteMainThread()
 {
-    while (!mainThreadQueue_.IsEmpty())
+    while (auto newTask = mainThreadQueue_.PopNextTask())
     {
-        auto newTask = mainThreadQueue_.PopNextTask();
         if (!newTask->ShouldStart())
         {
             mainThreadQueue_.AddJob(newTask);
+            std::this_thread::yield();
         }
         else
         {
@@ -347,32 +386,22 @@ void ExecuteMainThread()
 void Worker::Run() const
 {
     auto& queue = JobSystem::queues_[queueIndex_];
+    constexpr std::int64_t waitTimeoutUsecs = 250;
     while(JobSystem::isRunning_.load(std::memory_order_acquire))
     {
-        if (queue.IsEmpty())
+        Job* newTask = nullptr;
+        if (!queue.WaitDequeue(newTask, waitTimeoutUsecs) || newTask == nullptr)
         {
-            if (!JobSystem::isRunning_.load(std::memory_order_acquire))
-            {
-                return;
-            }
+            continue;
         }
-        else
+
+        if (!newTask->ShouldStart())
         {
-            while (!queue.IsEmpty())
-            {
-                auto newTask = queue.PopNextTask();
-                if (newTask == nullptr)
-                    continue;
-                if (!newTask->ShouldStart())
-                {
-                    queue.AddJob(newTask);
-                }
-                else
-                {
-                    newTask->Execute();
-                }
-            }
+            queue.AddJob(newTask);
+            std::this_thread::yield();
+            continue;
         }
+        newTask->Execute();
     }
     // Even when not running anymore we still need to finish the remaining jobs
     while (!queue.IsEmpty())
@@ -383,6 +412,7 @@ void Worker::Run() const
         if (!newTask->ShouldStart())
         {
             queue.AddJob(newTask);
+            std::this_thread::yield();
         }
         else
         {
@@ -399,24 +429,28 @@ void WorkerQueue::AddJob(Job* newJob)
 
 bool WorkerQueue::IsEmpty() const
 {
+    // size_approx() is only an approximate empty hint; dequeue operations are the
+    // correctness gate.
     return jobsQueue_.size_approx() == 0;
 }
 
 
 Job* WorkerQueue::PopNextTask()
 {
-    if (IsEmpty())
-        return nullptr;
-
     Job* newTask = nullptr;
-    jobsQueue_.try_dequeue(newTask);
+    if (!jobsQueue_.try_dequeue(newTask))
+    {
+        return nullptr;
+    }
     return newTask;
+}
+
+bool WorkerQueue::WaitDequeue(Job*& out, std::int64_t timeoutUsecs)
+{
+    return jobsQueue_.wait_dequeue_timed(out, timeoutUsecs);
 }
 
 void WorkerQueue::End()
 {
-    while (!IsEmpty()) {
-
-    }
 }
 }

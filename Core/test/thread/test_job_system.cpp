@@ -9,6 +9,21 @@ class EmptyJob : public neko::Job
 {
     void ExecuteImpl() override {}
 };
+
+class ControlledJob : public EmptyJob
+{
+public:
+    void SetStarted()
+    {
+        MarkStarted();
+    }
+
+    void SetDone()
+    {
+        MarkDone();
+    }
+};
+
 TEST(JobSystem, FuncJob)
 {
     EmptyJob job{};
@@ -38,13 +53,15 @@ class EmptyDependentJob : public neko::DependentJob
 
 TEST(JobSystem, DependencyJob)
 {
-	EmptyJob parentJob;
+	ControlledJob parentJob;
     EmptyDependentJob job{&parentJob};
 
     EXPECT_FALSE(job.ShouldStart());
 
-    parentJob.Execute();
+    parentJob.SetStarted();
+    EXPECT_FALSE(job.ShouldStart());
 
+    parentJob.SetDone();
     EXPECT_TRUE(job.ShouldStart());
     job.Execute();
     EXPECT_TRUE(job.IsDone());
@@ -56,21 +73,27 @@ class EmptyDependenciesJob : public neko::DependenciesJob
 };
 TEST(JobSystem, DependenciesJob)
 {
-    EmptyJob parentJob1;
-    EmptyJob parentJob2;
-    EmptyJob parentJob3;
+    ControlledJob parentJob1;
+    ControlledJob parentJob2;
+    ControlledJob parentJob3;
     EmptyDependenciesJob job{{&parentJob1, &parentJob2}};
 
     EXPECT_FALSE(job.ShouldStart());
 
-    parentJob1.Execute();
+    parentJob1.SetStarted();
     EXPECT_FALSE(job.ShouldStart());
-    parentJob2.Execute();
+    parentJob1.SetDone();
+    EXPECT_FALSE(job.ShouldStart());
+    parentJob2.SetStarted();
+    EXPECT_FALSE(job.ShouldStart());
+    parentJob2.SetDone();
     EXPECT_TRUE(job.ShouldStart());
 
     job.AddDependency(&parentJob3);
     EXPECT_FALSE(job.ShouldStart());
-    parentJob3.Execute();
+    parentJob3.SetStarted();
+    EXPECT_FALSE(job.ShouldStart());
+    parentJob3.SetDone();
     EXPECT_TRUE(job.ShouldStart());
 
 
@@ -230,4 +253,39 @@ TEST(JobSystem, JobSystemDependenciesStart)
 
     EXPECT_EQ(number1, finalNumber);
     EXPECT_EQ(number2, finalNumber);
+}
+
+TEST(JobSystem, ScheduleJobStartsWhenDependencyHasStarted)
+{
+    ControlledJob parentJob;
+    EmptyJob containedJob;
+    neko::ScheduleJob job{&containedJob, neko::MAIN_QUEUE_INDEX, &parentJob};
+
+    EXPECT_FALSE(job.ShouldStart());
+
+    parentJob.SetStarted();
+
+    EXPECT_TRUE(job.ShouldStart());
+}
+
+TEST(JobSystem, ScheduleJobCancellationDoesNotDeadlockContainedJob)
+{
+    int queueIndex = neko::JobSystem::SetupNewQueue(1);
+    std::atomic<bool> cancelFlag = true;
+    EmptyJob containedJob;
+    containedJob.SetCancelFlag(&cancelFlag);
+    neko::ScheduleJob scheduleJob{&containedJob, queueIndex};
+    scheduleJob.SetCancelFlag(&cancelFlag);
+
+    neko::JobSystem::Begin();
+    neko::JobSystem::AddJob(&scheduleJob, queueIndex);
+
+    scheduleJob.Join();
+    containedJob.Join();
+    neko::JobSystem::End();
+
+    EXPECT_TRUE(scheduleJob.IsDone());
+    EXPECT_TRUE(scheduleJob.HasFailed());
+    EXPECT_TRUE(containedJob.IsDone());
+    EXPECT_TRUE(containedJob.HasFailed());
 }

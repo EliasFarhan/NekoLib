@@ -128,7 +128,7 @@ bool FixedDependenciesJob<N>::ShouldStart() const
     bool shouldStart = true;
     for (auto& dependency : dependencies_)
     {
-        if (dependency != nullptr && !dependency->HasStarted())
+        if (dependency != nullptr && !dependency->IsDone())
         {
             shouldStart = false;
             break;
