@@ -59,6 +59,45 @@ public:
     return value == -1;
   }
 };
+
+TEST(IndexBasedContainer, AccessAfterReuseDefault) {
+  neko::IndexBasedContainer<Value> values = {};
+  auto index = values.add({42});
+  values.remove(index);
+  auto new_index = values.add({7});
+  EXPECT_NO_THROW((void)values.at(new_index));
+  EXPECT_EQ(values.at(new_index).value, 7);
+}
+
+TEST(IndexBasedContainer, AccessAfterReuseCopy) {
+  neko::IndexBasedContainer<Value> values = {};
+  auto index = values.add({42});
+  values.remove(index);
+  Value v{7};
+  auto new_index = values.add(v);
+  EXPECT_NO_THROW((void)values.at(new_index));
+  EXPECT_EQ(values.at(new_index).value, 7);
+}
+
+TEST(IndexBasedContainer, AccessAfterReuseMove) {
+  neko::IndexBasedContainer<MoveOnlyValue> values = {};
+  MoveOnlyValue a; a.value = 42;
+  auto index = values.add(std::move(a));
+  values.remove(index);
+  MoveOnlyValue b; b.value = 7;
+  auto new_index = values.add(std::move(b));
+  EXPECT_NO_THROW((void)values.at(new_index));
+  EXPECT_EQ(values.at(new_index).value, 7);
+}
+
+TEST(IndexBasedContainer, StaleIndexAfterReuseThrows) {
+  neko::IndexBasedContainer<Value> values = {};
+  auto old_index = values.add({1});
+  values.remove(old_index);
+  [[maybe_unused]] auto new_index = values.add({2});
+  EXPECT_THROW((void)values.at(old_index), std::out_of_range);
+}
+
 TEST(IndexBasedContainer, MoveValue) {
   neko::IndexBasedContainer<MoveOnlyValue> values = {};
   MoveOnlyValue m;
