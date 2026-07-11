@@ -6,7 +6,15 @@
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #endif
+#if defined(NN_NINTENDO_SDK) && !defined(__unix__)
+#define NEKO_DEFINED_UNIX_FOR_CONCURRENTQUEUE
+#define __unix__
+#endif
 #include <blockingconcurrentqueue.h>
+#ifdef NEKO_DEFINED_UNIX_FOR_CONCURRENTQUEUE
+#undef __unix__
+#undef NEKO_DEFINED_UNIX_FOR_CONCURRENTQUEUE
+#endif
 #if defined(__clang__)
 #pragma clang diagnostic pop
 #elif defined(__GNUC__)
