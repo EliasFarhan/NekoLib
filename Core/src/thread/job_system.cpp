@@ -18,6 +18,8 @@
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
 #endif
+#include <algorithm>
+#include <ranges>
 
 namespace neko
 {
