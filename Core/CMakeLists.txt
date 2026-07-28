@@ -6,6 +6,21 @@ add_library(NekoCore ${INCLUDE_FILES} ${SRC_FILES})
 target_link_libraries(NekoCore PUBLIC concurrentqueue)
 target_include_directories(NekoCore PUBLIC include/)
 
+# Tracy. The sources here already carry #ifdef TRACY_ENABLE zones (Job::Execute, Job::Join,
+# DependentJob::Execute, ...) and already include <tracy/Tracy.hpp> -- but nothing ever linked the
+# client or defined the macro, so every one of those zones was DEAD CODE and NekoCore contributed
+# nothing to a capture.
+#
+# Guarded on the target rather than on find_package's result: an embedder may supply
+# Tracy::TracyClient itself (a submodule build, or a cross-compiled client -- Nintendo Switch cannot
+# use Tracy's own CMakeLists.txt at all) instead of through CONFIG mode, in which case the
+# find_package(Tracy CONFIG) in the parent CMakeLists.txt legitimately finds nothing.
+# ⚠️ The embedder must therefore declare Tracy BEFORE adding NekoLib, or this silently does nothing.
+if(ENABLE_PROFILING AND TARGET Tracy::TracyClient)
+    target_link_libraries(NekoCore PUBLIC Tracy::TracyClient)
+    target_compile_definitions(NekoCore PUBLIC TRACY_ENABLE=1)
+endif()
+
 if (MSVC)
     # warning level 4 and all warnings as errors
     target_compile_options(NekoCore PRIVATE /W4 /w14640 /permissive-)

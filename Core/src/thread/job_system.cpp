@@ -25,6 +25,7 @@
 
 #ifdef TRACY_ENABLE
 #include <tracy/Tracy.hpp>
+#include <cstdio>
 #endif
 #include <algorithm>
 #include <ranges>
@@ -303,13 +304,21 @@ private:
 class Worker
 {
 public:
-    Worker(std::size_t queueIndex) : queueIndex_(queueIndex){}
+    Worker(std::size_t queueIndex, std::size_t workerIndex)
+        : queueIndex_(queueIndex), workerIndex_(workerIndex){}
     void Begin();
     void End();
 private:
     void Run() const;
     std::thread thread_;
     std::size_t queueIndex_ = std::numeric_limits<size_t>::max();
+    // Only used to build this worker's profiler thread name, so it need not be globally unique --
+    // it is an ordinal within the queue.
+    //
+    // ⚠️ [[maybe_unused]] is load-bearing, not decoration: this field is read ONLY inside an
+    // #ifdef TRACY_ENABLE block, and NekoCore compiles with -Werror on every non-MSVC toolchain, so
+    // without it a plain (non-profiling) clang build fails on -Wunused-private-field.
+    [[maybe_unused]] std::size_t workerIndex_ = 0;
 };
 
 void Worker::Begin()
@@ -343,7 +352,7 @@ int SetupNewQueue(int threadCount)
     queues_.emplace_back();
     for(int i = 0; i < threadCount; i++)
     {
-        workers_.emplace_back(newQueueIndex);
+        workers_.emplace_back(static_cast<std::size_t>(newQueueIndex), static_cast<std::size_t>(i));
     }
     return newQueueIndex;
 }
@@ -407,6 +416,18 @@ void ExecuteMainThread()
 }
 void Worker::Run() const
 {
+#ifdef TRACY_ENABLE
+    // Tracy copies the string, so a local buffer is fine.
+    //
+    // Without this every worker appears in the timeline as a bare numeric thread id. That is merely
+    // inconvenient on desktop, where the sampling profiler and the context-switch view can identify
+    // a thread by what it is doing -- but on Nintendo Switch, where TRACY_NO_SAMPLING,
+    // TRACY_NO_CALLSTACK and TRACY_NO_CONTEXT_SWITCH are all forced (no backends exist), an unnamed
+    // thread is genuinely unidentifiable.
+    char threadName[32];
+    std::snprintf(threadName, sizeof(threadName), "Worker q%zu/%zu", queueIndex_, workerIndex_);
+    tracy::SetThreadName(threadName);
+#endif
     auto& queue = JobSystem::queues_[queueIndex_];
     constexpr std::int64_t waitTimeoutUsecs = 250;
     while(JobSystem::isRunning_.load(std::memory_order_acquire))
