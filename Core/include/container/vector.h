@@ -11,11 +11,29 @@
 #include <iterator>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 namespace neko
 {
 /**
  * @brief SmallVector is a vector-like on stack fixed-sized container that allows to work like std::vector but on the stack
+ *
+ * Storage invariant: ALL Capacity slots of the backing std::array are live, valid T objects for the
+ * whole lifetime of the container. size_ is the logical size only -- it does not bound object
+ * lifetime. push_back/emplace_back therefore ASSIGN into an already-live slot rather than
+ * constructing into raw storage, and clear()/pop_back()/shrinking resize() must NOT call ~T():
+ * the backing std::array destroys every slot itself at end of scope, so an explicit destructor call
+ * here would leave a destroyed object that the next push_back assigns to (use-after-destroy) and
+ * that the array then destroys a second time (double free). For a T that owns resources, the
+ * logically-removed slots are assigned a fresh T{} instead, which releases those resources at the
+ * same point an explicit destructor call was intended to.
+ *
+ * Consequences worth knowing before choosing this container:
+ * - T must be default-constructible and assignable, and Capacity objects are constructed up front.
+ * - Copying a SmallVector copies all Capacity slots, not just the first size_ of them.
+ * - push_back/emplace_back/insert/resize THROW std::out_of_range past Capacity. Use try_push_back /
+ *   try_emplace_back where overflow is a data condition to handle rather than a programming error.
  * @tparam T
  * @tparam Capacity
  */
@@ -86,13 +104,100 @@ template<typename T, std::size_t Capacity>
             size_++;
         }
 
+        /**
+         * @brief push_back that reports overflow instead of throwing, for callers whose capacity is a
+         * data bound rather than an invariant (drop the element, warn, keep running).
+         * @return true if the value was appended, false if the container was already full
+         */
+        [[nodiscard]] constexpr bool try_push_back(const T& value)
+        {
+            if(size_ == Capacity)
+            {
+                return false;
+            }
+            underlyingContainer_[size_] = value;
+            size_++;
+            return true;
+        }
+
+        [[nodiscard]] constexpr bool try_push_back(T&& value)
+        {
+            if(size_ == Capacity)
+            {
+                return false;
+            }
+            underlyingContainer_[size_] = std::move(value);
+            size_++;
+            return true;
+        }
+
+        /**
+         * @brief Assigns a T built from args into the next slot. NOT in-place construction -- the slot
+         * is already a live object per the storage invariant, so this is an assignment from a
+         * temporary and cannot be used to hold a non-assignable T.
+         */
+        template<typename... Args>
+        constexpr T& emplace_back(Args&&... args)
+        {
+            if(size_ == Capacity)
+            {
+                throw std::out_of_range("Error: trying to emplace_back with size over capacity");
+            }
+            if constexpr (std::is_constructible_v<T, Args...>)
+            {
+                underlyingContainer_[size_] = T(std::forward<Args>(args)...);
+            }
+            else
+            {
+                underlyingContainer_[size_] = T{std::forward<Args>(args)...};
+            }
+            size_++;
+            return underlyingContainer_[size_-1];
+        }
+
+        template<typename... Args>
+        [[nodiscard]] constexpr bool try_emplace_back(Args&&... args)
+        {
+            if(size_ == Capacity)
+            {
+                return false;
+            }
+            if constexpr (std::is_constructible_v<T, Args...>)
+            {
+                underlyingContainer_[size_] = T(std::forward<Args>(args)...);
+            }
+            else
+            {
+                underlyingContainer_[size_] = T{std::forward<Args>(args)...};
+            }
+            size_++;
+            return true;
+        }
+
+        constexpr void pop_back()
+        {
+            if(size_ == 0)
+            {
+                return;
+            }
+            size_--;
+            if constexpr (!std::is_trivially_destructible_v<T>)
+            {
+                underlyingContainer_[size_] = T{};
+            }
+        }
+
+        /**
+         * @brief Logically empties the container. Does not call ~T() -- see the storage invariant.
+         * A resource-owning T has its live slots assigned a fresh T{}, which releases them here.
+         */
         constexpr void clear()
         {
-            if constexpr (std::is_destructible_v<T>)
+            if constexpr (!std::is_trivially_destructible_v<T>)
             {
                 for(std::size_t i = 0; i < size_; i++)
                 {
-                    underlyingContainer_[i].~T();
+                    underlyingContainer_[i] = T{};
                 }
             }
             size_ = 0;
@@ -100,6 +205,12 @@ template<typename T, std::size_t Capacity>
 
         constexpr void resize(std::size_t newSize, T newValue={})
         {
+            // Unchecked in the original: a resize past Capacity wrote straight off the end of the
+            // backing array. Every other growth path here throws, so this one does too.
+            if(newSize > Capacity)
+            {
+                throw std::out_of_range("Error: trying to resize with size over capacity");
+            }
             if(size_ == newSize)
             {
                 return;
@@ -111,14 +222,11 @@ template<typename T, std::size_t Capacity>
                     underlyingContainer_[i] = newValue;
                 }
             }
-            else
+            else if constexpr (!std::is_trivially_destructible_v<T>)
             {
-                if constexpr (std::is_destructible_v<T>)
+                for (auto i = newSize; i < size_; i++)
                 {
-                    for (auto i = newSize; i < size_; i++)
-                    {
-                        underlyingContainer_[i].~T();
-                    }
+                    underlyingContainer_[i] = T{};
                 }
             }
             size_ = newSize;
@@ -200,6 +308,32 @@ template<typename T, std::size_t Capacity>
             return pos;
         }
 
+        /**
+         * @brief Range erase, so the erase-remove idiom works:
+         * v.erase(std::remove_if(v.begin(), v.end(), pred), v.end())
+         * The vacated tail slots stay live objects per the storage invariant; a resource-owning T has
+         * them released.
+         */
+        constexpr auto erase(typename std::array<T, Capacity>::iterator first,
+                             typename std::array<T, Capacity>::iterator last )
+        {
+            if(first == last)
+            {
+                return first;
+            }
+            const auto out = std::move(last, end(), first);
+            const auto removed = static_cast<std::size_t>(std::distance(first, last));
+            if constexpr (!std::is_trivially_destructible_v<T>)
+            {
+                for(auto it = out; it != end(); ++it)
+                {
+                    *it = T{};
+                }
+            }
+            size_ -= removed;
+            return first;
+        }
+
         [[nodiscard]] static constexpr auto capacity() noexcept
         {
             return Capacity;
@@ -218,12 +352,26 @@ template<typename T, std::size_t Capacity>
         {
             return underlyingContainer_.front();
         }
+        [[nodiscard]] constexpr T& back()
+        {
+            return underlyingContainer_[size_-1];
+        }
+        [[nodiscard]] constexpr const T& back() const
+        {
+            return underlyingContainer_[size_-1];
+        }
         [[nodiscard]] constexpr auto data() noexcept
+        {
+            return underlyingContainer_.data();
+        }
+        [[nodiscard]] constexpr auto data() const noexcept
         {
             return underlyingContainer_.data();
         }
 		[[nodiscard]] constexpr bool is_full() const {return size_ == Capacity;}
 		[[nodiscard]] constexpr bool is_empty() const { return size_ == 0;}
+		// std::vector-compatible spelling, so a converted call site keeps reading the same.
+		[[nodiscard]] constexpr bool empty() const { return size_ == 0;}
 
 		[[nodiscard]] bool operator==(const SmallVector& other) const
 		{
