@@ -3,6 +3,7 @@
 #define NEKOLIB_STACK_H
 
 #include <vector>
+#include <exception>
 #include <stack>
 
 namespace neko

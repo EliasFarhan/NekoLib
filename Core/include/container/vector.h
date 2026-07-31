@@ -6,6 +6,7 @@
 #define NEKOLIB_FIXED_VECTOR_H
 
 #include <vector>
+#include <exception>
 #include <variant>
 #include <array>
 #include <iterator>
