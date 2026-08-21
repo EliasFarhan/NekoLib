@@ -12,6 +12,12 @@
 namespace neko
 {
 
+static constexpr auto MAIN_QUEUE_INDEX = -1;
+
+/// Scheduler internals, so the continuation machinery below can reach Job's private state without
+/// exposing it as public API. Defined in job_system.cpp; there is no instance of it.
+struct JobScheduler;
+
 class Job
 {
 public:
@@ -40,11 +46,35 @@ protected:
     void MarkStarted();
     void MarkDone();
     void MarkFailed();
+
+    /// Reports the jobs this one waits on, so the scheduler can register for a wake-up instead of
+    /// polling ShouldStart(). The DEFAULT IS EMPTY, which is correct for a Job whose ShouldStart()
+    /// is unconditional.
+    ///
+    /// ⚠️ This is an INDEX, not the readiness rule. `ShouldStart()` remains the only authority on
+    /// whether a job may run -- the scheduler re-derives readiness by calling it, and never latches
+    /// the answer. That is what keeps `AddDependency()` able to move a job back from ready to
+    /// not-ready (test_job_system.cpp's DependenciesJob case) and what lets a subclass gate on
+    /// HasStarted() rather than IsDone().
+    ///
+    /// ⚠️ Every dependency reported here MUST be reachable from ShouldStart(), or the job is
+    /// enqueued before it is ready. Every dependency ShouldStart() reads MUST be reported here, or
+    /// the job is never woken at all.
+    virtual void CollectDependencies(std::vector<Job*>& out) const;
+
 private:
+    friend struct JobScheduler;
+
     std::atomic<bool> hasStarted_{ false };
     std::atomic<bool> isDone_{ false };
     std::atomic<bool> failed_{ false };
     std::atomic<bool>* cancelFlag_{ nullptr };
+
+    /// Which queue this job was last submitted to. The ONLY state the scheduler keeps on a Job --
+    /// everything else it needs lives on the queue, because that is where the (tiny, usually empty)
+    /// set of not-yet-ready jobs belongs. A Job must stay cheap: the engine re-submits the same
+    /// seven of them every single frame.
+    std::atomic<int> queueIndex_{ MAIN_QUEUE_INDEX };
 };
 
 
@@ -58,6 +88,8 @@ public:
     void Execute() override;
     [[nodiscard]] bool ShouldStart() const override;
 	[[nodiscard]] bool CheckDependency(const Job *ptr) const override;
+protected:
+    void CollectDependencies(std::vector<Job*>& out) const override;
 private:
     Job* dependency_{};
 };
@@ -72,6 +104,7 @@ public:
     void Execute() override;
 protected:
     bool CheckDependency(const Job *ptr) const override;
+    void CollectDependencies(std::vector<Job*>& out) const override;
     std::vector<Job*> dependencies_{};
 };
 
@@ -84,6 +117,7 @@ public:
     bool ShouldStart() const override;
 protected:
     bool CheckDependency(const Job *ptr) const override;
+    void CollectDependencies(std::vector<Job*>& out) const override;
     std::array<Job*, N> dependencies_{};
 };
 
@@ -147,8 +181,6 @@ bool FixedDependenciesJob<N>::CheckDependency(const Job* ptr) const
     });
 }
 
-static constexpr auto MAIN_QUEUE_INDEX = -1;
-
 /// Dynamically adds a contained job to a target queue once its own dependency
 /// has finished.  Useful when a job must run on a specific queue (e.g. the main
 /// thread) but should NOT be pre-scheduled — avoiding the wasted per-frame
@@ -171,6 +203,7 @@ public:
 
 protected:
     void ExecuteImpl() override {}
+    void CollectDependencies(std::vector<Job*>& out) const override;
 
 private:
     Job* containedJob_;
