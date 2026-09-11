@@ -37,6 +37,13 @@
 namespace neko
 {
 
+namespace
+{
+/// See JobSystem::SetUnhandledExceptionHandler. Read on every thread that executes a job, written by
+/// whoever installs it -- hence atomic, even though it is set once at startup in practice.
+std::atomic<JobExceptionHandler> unhandledExceptionHandler_{nullptr};
+}
+
 /// The scheduler's window into Job's private state. Deliberately three tiny accessors: a Job carries
 /// no scheduling containers, no claim flags and no lock.
 ///
@@ -67,6 +74,16 @@ void Job::Execute()
         isDone_.notify_all();
         return;
     }
+    // ⚠️ THIS CATCH IS WHY AN EXCEPTION NEVER TERMINATES THE PROCESS FROM A JOB. It exists for
+    // failure propagation (6818b32): a job that throws is marked failed, and every DependentJob /
+    // DependenciesJob downstream of it is skipped as failed instead of running on missing results.
+    // So "a worker has no handler above it, an escaping exception is std::terminate" is FALSE here --
+    // the exception is caught on every thread, the main queue included.
+    //
+    // ⚠️ And by itself it is SILENT: failed_ carries no type and no message. That is what the handler
+    // is for. It is a process-wide function pointer rather than an exception_ptr member on Job
+    // because a Job must stay cheap -- the engine re-submits its frame jobs every frame, and a
+    // member would tax every one of them for a path that is taken on a bug.
     try
     {
         ExecuteImpl();
@@ -74,6 +91,12 @@ void Job::Execute()
     catch (...)
     {
         failed_.store(true, std::memory_order_release);
+        // Before isDone_, so a Join() that returns has already seen the report.
+        if (const JobExceptionHandler handler = unhandledExceptionHandler_.load(std::memory_order_acquire);
+            handler != nullptr)
+        {
+            handler(std::current_exception());
+        }
     }
     isDone_.store(true, std::memory_order_release);
     isDone_.notify_all();
@@ -455,6 +478,11 @@ void ReleaseReady()
 }
 
 Job* ShutdownSentinel() { return &shutdownSentinel_; }
+
+void SetUnhandledExceptionHandler(JobExceptionHandler handler)
+{
+    unhandledExceptionHandler_.store(handler, std::memory_order_release);
+}
 
 int SetupNewQueue(int threadCount)
 {

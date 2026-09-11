@@ -5,6 +5,10 @@
 #include "thread/job_system.h"
 #include "gtest/gtest.h"
 
+#include <atomic>
+#include <stdexcept>
+#include <string>
+
 class EmptyJob : public neko::Job
 {
     void ExecuteImpl() override {}
@@ -288,4 +292,77 @@ TEST(JobSystem, ScheduleJobCancellationDoesNotDeadlockContainedJob)
     EXPECT_TRUE(scheduleJob.HasFailed());
     EXPECT_TRUE(containedJob.IsDone());
     EXPECT_TRUE(containedJob.HasFailed());
+}
+
+namespace
+{
+class ThrowingJob : public neko::Job
+{
+protected:
+    void ExecuteImpl() override
+    {
+        throw std::runtime_error("job exception hook test");
+    }
+};
+
+class FlagDependentJob : public neko::DependentJob
+{
+public:
+    explicit FlagDependentJob(neko::Job* dependency) : neko::DependentJob(dependency) {}
+    std::atomic<bool> ran{false};
+
+protected:
+    void ExecuteImpl() override
+    {
+        ran.store(true);
+    }
+};
+
+std::atomic<int> handlerCalls{0};
+std::string handlerWhat;
+
+void RecordingHandler(std::exception_ptr exception) noexcept
+{
+    handlerCalls.fetch_add(1);
+    try
+    {
+        std::rethrow_exception(exception);
+    }
+    catch (const std::exception& e)
+    {
+        handlerWhat = e.what();
+    }
+    catch (...)
+    {
+        handlerWhat = "<not a std::exception>";
+    }
+}
+} // namespace
+
+// An exception escaping a job must neither terminate the process nor vanish: the job fails, the
+// installed handler sees the exception exactly once, and a job depending on it is skipped as failed.
+TEST(JobSystem, ThrowingJobFailsReportsToHandlerAndSkipsDependents)
+{
+    handlerCalls = 0;
+    handlerWhat.clear();
+    neko::JobSystem::SetUnhandledExceptionHandler(&RecordingHandler);
+
+    int queueIndex = neko::JobSystem::SetupNewQueue(1);
+    ThrowingJob throwingJob;
+    FlagDependentJob dependentJob{&throwingJob};
+
+    neko::JobSystem::Begin();
+    neko::JobSystem::AddJob(&throwingJob, queueIndex);
+    neko::JobSystem::AddJob(&dependentJob, queueIndex);
+    dependentJob.Join();
+    neko::JobSystem::End();
+    neko::JobSystem::SetUnhandledExceptionHandler(nullptr);
+
+    EXPECT_TRUE(throwingJob.IsDone());
+    EXPECT_TRUE(throwingJob.HasFailed());
+    EXPECT_EQ(handlerCalls.load(), 1);
+    EXPECT_EQ(handlerWhat, "job exception hook test");
+    EXPECT_TRUE(dependentJob.IsDone());
+    EXPECT_TRUE(dependentJob.HasFailed());
+    EXPECT_FALSE(dependentJob.ran.load());
 }

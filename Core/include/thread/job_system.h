@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <atomic>
+#include <exception>
 #include <functional>
 #include <memory>
 #include <future>
@@ -211,8 +212,22 @@ private:
     Job* dependency_;
 };
 
+/// Receives the exception that escaped a job's ExecuteImpl(). Runs on whichever thread executed the
+/// job -- a worker, or the main thread inside ExecuteMainThread() -- so it must be thread-safe, and
+/// it must not throw: it is called from inside Job::Execute's catch block.
+using JobExceptionHandler = void (*)(std::exception_ptr exception) noexcept;
+
 namespace JobSystem
 {
+    /**
+     * @brief SetUnhandledExceptionHandler installs the process-wide handler Job::Execute calls when
+     * an exception escapes a job. nullptr (the default) removes it.
+     *
+     * ⚠️ The job is marked failed EITHER WAY -- the handler adds a report, it does not replace the
+     * failure. Without one, an escaping exception becomes `HasFailed()` and nothing else: its type
+     * and message are gone, and nothing is printed.
+     */
+    void SetUnhandledExceptionHandler(JobExceptionHandler handler);
     /**
      * @brief SetupNewQueue is a member function that adds a new queue in the JobSystem and
      * adds a certain number of threads attached to it. It must be called before the Begin member function
